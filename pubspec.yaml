@@ -1,0 +1,34 @@
+name: chat_app
+description: 极简黑底白字IM聊天APP
+publish_to: 'none'
+version: 1.0.0+1
+
+# Flutter SDK 约束（3.19+ 稳定版）
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+  flutter: '>=3.19.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ========== 网络 & 通信 ==========
+  dio: ^5.4.0                       # HTTP 请求（含 FormData + DioMediaType）
+  web_socket_channel: ^2.4.0        # WebSocket 长连接
+
+  # ========== 本地存储 ==========
+  shared_preferences: ^2.2.0         # 存 token / userId
+
+  # ========== 功能工具 ==========
+  image_picker: ^1.1.0               # 拍照/相册选头像
+  intl: ^0.19.0                      # 日期格式化（HH:mm / MM-dd）
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/bg_reim.png

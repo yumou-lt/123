@@ -1,0 +1,32 @@
+version: "1.0"
+name: lengtingyu-flutter-ios
+displayName: "冷亭雨 Flutter iOS"
+triggers:
+  push:
+    branches:
+      - main
+
+stages:
+  - build
+
+build:
+  stage: build
+  image: macos-latest
+  steps:
+    - name: checkout
+      uses: actions/checkout@v3
+    - name: build_ipa
+      script:
+        - export PUB_HOSTED_URL=https://pub.flutter-io.cn
+        - export FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn
+        - git clone -b 3.24.0 --depth 1 https://github.com/flutter/flutter.git $HOME/flutter
+        - export PATH="$PATH:$HOME/flutter/bin"
+        - flutter --version
+        - flutter pub get
+        - cd ios && pod install --repo-update || pod install; cd ..
+        - flutter build ipa --no-codesign
+        - ls -la build/ios/ipa/
+  artifacts:
+    paths:
+      - build/ios/ipa/*.ipa
+    expire_in: 30 days

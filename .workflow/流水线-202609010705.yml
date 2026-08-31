@@ -6,19 +6,20 @@ stages:
 build_ios:
   stage: build
   image: macos-latest
-  variables:
-    PUB_HOSTED_URL: 'https://pub.flutter-io.cn'
-    FLUTTER_STORAGE_BASE_URL: 'https://storage.flutter-io.cn'
-  script:
-    - export PUB_HOSTED_URL=https://pub.flutter-io.cn
-    - export FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn
-    - git clone -b 3.24.0 --depth 1 https://github.com/flutter/flutter.git $HOME/flutter
-    - export PATH="$PATH:$HOME/flutter/bin"
-    - flutter --version
-    - flutter pub get
-    - cd ios && pod install --repo-update || pod install; cd ..
-    - flutter build ipa --no-codesign
-    - ls -la build/ios/ipa/
+  steps:
+    - name: checkout
+      uses: actions/checkout@v3
+    - name: build
+      script:
+        - export PUB_HOSTED_URL=https://pub.flutter-io.cn
+        - export FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn
+        - git clone -b 3.24.0 --depth 1 https://github.com/flutter/flutter.git $HOME/flutter
+        - export PATH="$PATH:$HOME/flutter/bin"
+        - flutter --version
+        - flutter pub get
+        - cd ios && pod install --repo-update || pod install; cd ..
+        - flutter build ipa --no-codesign
+        - ls -la build/ios/ipa/
   artifacts:
     paths:
       - build/ios/ipa/*.ipa

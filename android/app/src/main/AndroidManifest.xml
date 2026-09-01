@@ -13,8 +13,15 @@
 
     <!-- 相册读取（头像上传用） -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <!-- Android 13+ 图片选择权限 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <!-- 录音权限（语音消息用） -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- 拍照权限（可选） -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- 安装未知来源 APK（自动更新用） -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES"/>
 
     <application
         android:label="冷亭雨"

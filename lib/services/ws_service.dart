@@ -216,12 +216,13 @@ class WsService {
   }
 
   // ---------- 发送单聊消息 ----------
-  void sendChatMessage({required int receiverId, required String content, int msgType = 0, int? replyToId, String? replyContent}) {
+  void sendChatMessage({required int receiverId, required String content, int msgType = 0, int? replyToId, String? replyContent, int duration = 0}) {
     final data = {
       'type': 'chat_message',
       'receiverId': receiverId,
       'content': content,
       'msgType': msgType,
+      'duration': duration,
     };
     if (replyToId != null) data['replyToId'] = replyToId;
     if (replyContent != null) data['replyContent'] = replyContent;
@@ -229,11 +230,13 @@ class WsService {
   }
 
   // ---------- 发送群聊消息 ----------
-  void sendGroupMessage({required int groupId, required String content}) {
+  void sendGroupMessage({required int groupId, required String content, int msgType = 0, int duration = 0}) {
     send({
       'type': 'group_message',
       'groupId': groupId,
       'content': content,
+      'msgType': msgType,
+      'duration': duration,
     });
   }
 
@@ -242,6 +245,49 @@ class WsService {
     send({
       'type': 'chat_message_retract',
       'msgId': msgId,
+    });
+  }
+
+  // ---------- 撤回群聊消息 ----------
+  void sendGroupRetract({required int msgId}) {
+    send({
+      'type': 'group_message_retract',
+      'msgId': msgId,
+    });
+  }
+
+  // ---------- 打字中提示 ----------
+  void sendTyping({required int targetId, int targetType = 1}) {
+    send({
+      'type': 'typing',
+      'targetId': targetId,
+      'targetType': targetType,
+    });
+  }
+
+  // ---------- 已读回执 ----------
+  void sendReadReceipt({required int friendId, int targetType = 1, int? readUpToMsgId}) {
+    send({
+      'type': 'read_receipt',
+      'friendId': friendId,
+      'targetType': targetType,
+      if (readUpToMsgId != null) 'readUpToMsgId': readUpToMsgId,
+    });
+  }
+
+  // ---------- 发送带 @mention 的群聊消息 ----------
+  void sendGroupMessageWithMention({
+    required int groupId,
+    required String content,
+    int msgType = 0,
+    int duration = 0,
+  }) {
+    send({
+      'type': 'group_message',
+      'groupId': groupId,
+      'content': content,
+      'msgType': msgType,
+      'duration': duration,
     });
   }
 }

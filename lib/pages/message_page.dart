@@ -2,6 +2,7 @@
 // 消息列表 Tab：最近会话 + 未读数
 // ============================================================
 
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:chat_app/config/global_config.dart';
@@ -12,6 +13,7 @@ import 'package:chat_app/models/message.dart';
 import 'package:chat_app/pages/chat_page.dart';
 import 'package:chat_app/pages/group_chat_page.dart';
 import 'package:chat_app/pages/group_create_page.dart';
+import 'package:chat_app/pages/search_page.dart';
 import 'package:chat_app/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 
@@ -25,6 +27,7 @@ class MessagePage extends StatefulWidget {
 class _MessagePageState extends State<MessagePage> {
   List<Map<String, dynamic>> _conversations = [];
   List<Map<String, dynamic>> _myGroups = [];
+  List<Map<String, dynamic>> _pinnedConvs = [];   // 置顶的会话
   bool _loading = true;
 
   @override
@@ -131,10 +134,36 @@ class _MessagePageState extends State<MessagePage> {
     try {
       final convResp = await ApiService().getConversations();
       final groupResp = await ApiService().getMyGroups();
+      final pinResp = await ApiService().getPinnedConversations();
 
       setState(() {
         _conversations = List<Map<String, dynamic>>.from(convResp['data'] ?? []);
         _myGroups = List<Map<String, dynamic>>.from(groupResp['data'] ?? []);
+        final pins = List<Map<String, dynamic>>.from(pinResp['data'] ?? []);
+        // 标记哪些会话被置顶了
+        final pinnedIds = <String, int>{}; // key: "type_targetId" → pinId
+        for (final p in pins) {
+          pinnedIds['${p['targetType']}_${p['targetId']}'] = p['id'];
+        }
+        // 合并单聊+群聊，提取置顶的
+        final all = <Map<String, dynamic>>[];
+        for (final c in _conversations) {
+          all.add({...c, '_isGroup': false, '_pinId': pinnedIds['1_${c['userId']}']});
+        }
+        for (final g in _myGroups) {
+          all.add({...g, '_isGroup': true, '_pinId': pinnedIds['2_${g['id']}']});
+        }
+        // 置顶的排前面，再按时间倒序
+        all.sort((a, b) {
+          final aPinned = a['_pinId'] != null;
+          final bPinned = b['_pinId'] != null;
+          if (aPinned != bPinned) return aPinned ? -1 : 1;
+          final aTime = a['lastTime'] ?? a['create_time'] ?? '';
+          final bTime = b['lastTime'] ?? b['create_time'] ?? '';
+          return bTime.toString().compareTo(aTime.toString());
+        });
+        _pinnedConvs = all.where((e) => e['_pinId'] != null).toList();
+        _conversations = all.where((e) => e['_pinId'] == null).toList();
         _loading = false;
       });
     } catch (e) {
@@ -188,6 +217,10 @@ class _MessagePageState extends State<MessagePage> {
         title: const Text('消息', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w700, fontSize: 20)),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.black),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SearchPage())),
+          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.add, color: Colors.black),
             onSelected: (v) {
@@ -210,17 +243,19 @@ class _MessagePageState extends State<MessagePage> {
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
                     children: [
-                      // 单聊会话
-                      ..._conversations.map((c) => _buildConversationItem(c, false)),
-                      // 群聊会话
-                      ..._myGroups.map((g) => _buildConversationItem(g, true)),
+                      // 置顶会话
+                      ..._pinnedConvs.map((c) => _buildConversationItem(c, c['_isGroup'] == true, isPinned: true)),
+                      if (_pinnedConvs.isNotEmpty && (_conversations.isNotEmpty || _myGroups.isNotEmpty))
+                        const Divider(height: 1, thickness: 0.5, indent: 72),
+                      // 普通会话
+                      ..._conversations.map((c) => _buildConversationItem(c, c['_isGroup'] == true, isPinned: false)),
                     ],
                   ),
       ),
     );
   }
 
-  Widget _buildConversationItem(Map<String, dynamic> data, bool isGroup) {
+  Widget _buildConversationItem(Map<String, dynamic> data, bool isGroup, {bool isPinned = false}) {
     final int unread;
     final String name;
     final String avatar;
@@ -242,6 +277,7 @@ class _MessagePageState extends State<MessagePage> {
     }
 
     return InkWell(
+      onLongPress: () => _showConvLongMenu(data, isGroup, isPinned),
       onTap: () {
         if (isGroup) {
           Navigator.of(context).push(
@@ -256,8 +292,9 @@ class _MessagePageState extends State<MessagePage> {
       child: Container(
         height: 72,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE), width: 0.5)),
+        decoration: BoxDecoration(
+          color: isPinned ? const Color(0xFFF5F5F5) : Colors.white,
+          border: const Border(bottom: BorderSide(color: Color(0xFFEEEEEE), width: 0.5)),
         ),
         child: Row(
           children: [
@@ -278,6 +315,7 @@ class _MessagePageState extends State<MessagePage> {
                   Row(
                     children: [
                       Expanded(child: Text(name, style: const TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      if (isPinned) const Padding(padding: EdgeInsets.only(right: 6), child: Icon(Icons.push_pin, size: 12, color: Colors.black38)),
                       Text(time, style: const TextStyle(color: Colors.black38, fontSize: 11)),
                     ],
                   ),
@@ -297,6 +335,37 @@ class _MessagePageState extends State<MessagePage> {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 会话长按菜单（置顶 / 取消置顶）
+  void _showConvLongMenu(Map<String, dynamic> data, bool isGroup, bool isPinned) {
+    final targetId = isGroup ? data['id'] : data['userId'];
+    final targetType = isGroup ? 2 : 1;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(isPinned ? Icons.clear : Icons.push_pin),
+              title: Text(isPinned ? '取消置顶' : '置顶聊天'),
+              onTap: () async {
+                Navigator.pop(ctx);
+                try {
+                  if (isPinned) {
+                    await ApiService().unpinConversation(targetId, targetType: targetType);
+                  } else {
+                    await ApiService().pinConversation(targetId, targetType: targetType);
+                  }
+                  _loadData();
+                } catch (_) {}
+              },
             ),
           ],
         ),

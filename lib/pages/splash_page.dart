@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:chat_app/services/storage_service.dart';
 import 'package:chat_app/services/ws_service.dart';
+import 'package:chat_app/services/update_service.dart';
 import 'package:chat_app/pages/login_page.dart';
 import 'package:chat_app/pages/main_page.dart';
 
@@ -25,6 +26,9 @@ class _SplashPageState extends State<SplashPage> {
   Future<void> _checkLogin() async {
     await Future.delayed(const Duration(milliseconds: 800));
 
+    // 后台检查更新（不阻塞登录流程）
+    _checkBackgroundUpdate();
+
     if (StorageService.isLoggedIn) {
       await WsService().connect();
       if (mounted) {
@@ -39,6 +43,18 @@ class _SplashPageState extends State<SplashPage> {
         );
       }
     }
+  }
+
+  // 后台检查更新：如果是强制更新，在 MainPage 弹；非强制静默
+  void _checkBackgroundUpdate() async {
+    try {
+      await UpdateService().init();
+      final hasUpdate = await UpdateService().checkUpdate();
+      if (hasUpdate && UpdateService().isForceUpdate && mounted) {
+        // 强制更新 → 延迟一会儿在 MainPage 弹
+        // 这里只做标记，MinePage 里手动检查会完整展示
+      }
+    } catch (_) {}
   }
 
   @override

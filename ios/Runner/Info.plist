@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Chat App</string>
+	<string>冷亭雨</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -45,5 +45,22 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- 允许 HTTP 明文访问（后端是 http://，iOS 默认只允许 https://） -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<!-- image_picker 拍照权限描述 -->
+	<key>NSCameraUsageDescription</key>
+	<string>需要访问相机以拍摄头像</string>
+	<!-- image_picker 相册权限描述 -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>需要访问相册以选择头像</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>保存图片到相册</string>
+	<!-- record 录音权限 -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>需要访问麦克风以发送语音消息</string>
 </dict>
 </plist>

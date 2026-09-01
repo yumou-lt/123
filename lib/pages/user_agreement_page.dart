@@ -211,7 +211,7 @@ class _UserAgreementPageState extends State<UserAgreementPage> {
                     width: double.infinity,
                     height: 44,
                     child: ElevatedButton(
-                      onPressed: (_acknowledged && !_confirmed)
+                      onPressed: !_confirmed
                           ? () async {
                               setState(() => _confirmed = true);
                               await StorageService.saveAgreementAcknowledged(true);
@@ -219,7 +219,6 @@ class _UserAgreementPageState extends State<UserAgreementPage> {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('已确认遵守用户守则'), backgroundColor: Colors.green, duration: Duration(seconds: 1)),
                               );
-                              // 强制模式：跳回主页面；普通模式：正常 pop
                               if (widget.enforce) {
                                 Future.delayed(const Duration(milliseconds: 500), () {
                                   if (mounted) {

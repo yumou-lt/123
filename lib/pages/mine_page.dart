@@ -1,5 +1,5 @@
 // ============================================================
-// 我的 Tab：个人信息 + 退出登录
+// 我的 Tab：个人信息 + 退出登录 + 版本 + 更新 + 设置
 // ============================================================
 
 import 'package:flutter/material.dart';
@@ -7,6 +7,7 @@ import 'package:chat_app/config/global_config.dart';
 import 'package:chat_app/services/api_service.dart';
 import 'package:chat_app/services/storage_service.dart';
 import 'package:chat_app/services/ws_service.dart';
+import 'package:chat_app/services/update_service.dart';
 import 'package:chat_app/pages/edit_profile_page.dart';
 import 'package:chat_app/pages/login_page.dart';
 import 'package:chat_app/pages/user_agreement_page.dart';
@@ -24,11 +25,16 @@ class _MinePageState extends State<MinePage> {
   String _avatar = '';
   int? _userId;
   bool _agreementAck = false;
+  bool _isCheckingUpdate = false;
+  String? _cacheSizeText;
+  bool _cacheLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadLocal();
+    _loadCacheSize();
+    _initUpdateService();
   }
 
   void _loadLocal() {
@@ -38,6 +44,19 @@ class _MinePageState extends State<MinePage> {
       _userId = StorageService.getUserId();
       _agreementAck = StorageService.agreementAcknowledged;
     });
+  }
+
+  Future<void> _loadCacheSize() async {
+    final size = await UpdateService().getCacheSizeText();
+    if (mounted) setState(() {
+      _cacheSizeText = size;
+      _cacheLoading = false;
+    });
+  }
+
+  Future<void> _initUpdateService() async {
+    await UpdateService().init();
+    if (mounted) setState(() {});
   }
 
   Future<void> _refreshFromServer() async {
@@ -50,6 +69,124 @@ class _MinePageState extends State<MinePage> {
         _loadLocal();
       }
     } catch (_) {}
+  }
+
+  Future<void> _checkUpdate() async {
+    setState(() => _isCheckingUpdate = true);
+    final hasUpdate = await UpdateService().checkUpdate();
+    if (!mounted) return;
+    setState(() => _isCheckingUpdate = false);
+
+    if (!hasUpdate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已是最新版本')),
+      );
+      return;
+    }
+    _showUpdateDialog();
+  }
+
+  void _showUpdateDialog() {
+    final svc = UpdateService();
+    showDialog(
+      context: context,
+      barrierDismissible: !svc.isForceUpdate,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          bool downloading = false;
+          double progress = 0;
+          bool installing = false;
+
+          return AlertDialog(
+            title: Text('发现新版本 v${svc.latestVersionName}'),
+            content: downloading
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('正在下载...'),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Colors.grey.shade200,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text('${(progress * 100).toStringAsFixed(1)}%'),
+                    ],
+                  )
+                : installing
+                    ? const Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 12),
+                          Text('正在启动安装...'),
+                        ],
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('更新日志：', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          const SizedBox(height: 8),
+                          ...svc.updateLog.map((line) => Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 2),
+                                child: Text('• $line', style: const TextStyle(fontSize: 13)),
+                              )),
+                        ],
+                      ),
+            actions: downloading || installing
+                ? []
+                : [
+                    TextButton(
+                      onPressed: svc.isForceUpdate
+                          ? null
+                          : () => Navigator.of(ctx).pop(),
+                      child: Text(svc.isForceUpdate ? '强制更新' : '稍后再说'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        setState(() => downloading = true);
+                        final file = await svc.downloadApk();
+                        setState(() => downloading = false);
+                        if (file != null) {
+                          setState(() => installing = true);
+                          await svc.installApk(file);
+                          if (ctx.mounted) Navigator.of(ctx).pop();
+                        }
+                      },
+                      child: const Text('立即更新'),
+                    ),
+                  ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _clearCache() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('清除缓存'),
+        content: Text('确定要清除缓存吗？当前缓存：${_cacheSizeText ?? '加载中'}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('确定')),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await UpdateService().clearCache();
+      await _loadCacheSize();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('缓存已清除')),
+        );
+      }
+    }
   }
 
   Future<void> _logout() async {
@@ -132,6 +269,16 @@ class _MinePageState extends State<MinePage> {
                 },
                 highlight: !_agreementAck,
               ),
+              _buildDivider(),
+              // 清除缓存
+              _buildItem(Icons.cleaning_services_outlined, '清除缓存', _clearCache,
+                  trailing: Text(_cacheLoading ? '...' : (_cacheSizeText ?? ''), style: const TextStyle(color: Colors.black38, fontSize: 12))),
+              _buildDivider(),
+              // 检查更新
+              _buildItem(Icons.system_update_outlined, '检查更新', _checkUpdate,
+                  trailing: _isCheckingUpdate
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black26))
+                      : Text('v${UpdateService().currentVersionName}', style: const TextStyle(color: Colors.black38, fontSize: 12))),
             ],
           ),
           const SizedBox(height: 32),
@@ -149,6 +296,13 @@ class _MinePageState extends State<MinePage> {
               child: const Text('退出登录', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
             ),
           ),
+          const SizedBox(height: 24),
+          // 底部版本号
+          Center(
+            child: Text('冷亭雨 v${UpdateService().currentVersionName} (${UpdateService().currentVersionCode})',
+                style: const TextStyle(color: Colors.black26, fontSize: 11)),
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -161,7 +315,7 @@ class _MinePageState extends State<MinePage> {
     );
   }
 
-  Widget _buildItem(IconData icon, String label, VoidCallback onTap, {bool highlight = false}) {
+  Widget _buildItem(IconData icon, String label, VoidCallback onTap, {bool highlight = false, Widget? trailing}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -180,6 +334,7 @@ class _MinePageState extends State<MinePage> {
                 decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
                 child: const Text('未确认', style: TextStyle(color: Colors.red, fontSize: 10, fontWeight: FontWeight.w600)),
               ),
+            if (trailing != null) trailing,
             const Icon(Icons.chevron_right, color: Colors.black26, size: 20),
           ],
         ),

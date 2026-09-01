@@ -1,13 +1,22 @@
 // ============================================================
-// 群聊页：简约白底 + 蓝色/白色气泡
+// 群聊页：图片 + 语音 + 动画 + 额外面板
 // ============================================================
 
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:chat_app/config/global_config.dart';
 import 'package:chat_app/services/api_service.dart';
 import 'package:chat_app/services/storage_service.dart';
 import 'package:chat_app/services/ws_service.dart';
+import 'package:chat_app/services/voice_service.dart';
 import 'package:chat_app/models/message.dart';
 import 'package:chat_app/pages/group_info_page.dart';
+import 'package:chat_app/widgets/chat_widgets.dart';
+import 'package:intl/intl.dart';
 
 class GroupChatPage extends StatefulWidget {
   final int groupId;
@@ -19,7 +28,7 @@ class GroupChatPage extends StatefulWidget {
 }
 
 class _GroupChatPageState extends State<GroupChatPage> {
-  final List<dynamic> _messages = [];
+  final List<GroupMessage> _messages = [];
   final List<WsMessage> _pendingWsMessages = [];
   final _inputController = TextEditingController();
   final _scrollController = ScrollController();
@@ -27,20 +36,40 @@ class _GroupChatPageState extends State<GroupChatPage> {
   bool _loadingHistory = true;
   final Set<int> _seenMsgIds = {};
 
+  bool _isTyping = false;
+  Timer? _typingDebounce;
+  final List<int> _pinnedMsgIds = []; // 已撤回消息的 msgId 列表（简单方案：标记为撤回过的可以重新编辑）
+
+  bool _showExtraPanel = false;
+  bool _showRecordIndicator = false;
+
   int get _myId => StorageService.getUserId() ?? 0;
+  String get _myAvatar => StorageService.getAvatar() ?? '';
 
   @override
   void initState() {
     super.initState();
     WsService().on('group_message', _onWsMessage);
+    WsService().on('typing', _onWsTyping);
+    WsService().on('group_message_retract', _onGroupMessageRetract);
+    WsService().on('read_receipt', _onWsReadReceipt);
+    WsService().on('group_send_fail', (WsMessage msg) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg.data['message'] ?? '发送失败')),
+      );
+    });
     _loadHistory();
   }
 
   @override
   void dispose() {
     WsService().off('group_message', _onWsMessage);
+    WsService().off('typing', _onWsTyping);
+    WsService().off('group_message_retract', _onGroupMessageRetract);
+    WsService().off('read_receipt', _onWsReadReceipt);
     _inputController.dispose();
     _scrollController.dispose();
+    VoiceRecordService().dispose();
     super.dispose();
   }
 
@@ -72,9 +101,11 @@ class _GroupChatPageState extends State<GroupChatPage> {
             id: wsMsgId ?? 0,
             senderId: d['senderId'] ?? 0,
             senderNickname: d['senderNickname'] ?? '',
-            senderAvatar: d['avatar'] ?? '',
+            senderAvatar: d['avatar'] ?? d['senderAvatar'] ?? '',
             content: d['content'] ?? '',
             createTime: d['createTime'] ?? '',
+            msgType: d['msgType'] ?? 0,
+            duration: d['duration'] ?? 0,
           );
           _seenMsgIds.add(gm.id);
           _messages.add(gm);
@@ -125,13 +156,74 @@ class _GroupChatPageState extends State<GroupChatPage> {
         id: wsMsgId,
         senderId: data['senderId'] ?? 0,
         senderNickname: data['senderNickname'] ?? '',
-        senderAvatar: data['avatar'] ?? '',
+        senderAvatar: data['avatar'] ?? data['senderAvatar'] ?? '',
         content: data['content'] ?? '',
         createTime: data['createTime'] ?? '',
+        msgType: data['msgType'] ?? 0,
+        duration: data['duration'] ?? 0,
       ));
       _messages.sort((a, b) => _timeOf(a).compareTo(_timeOf(b)));
     });
     _scrollToBottom();
+  }
+
+  void _onWsTyping(WsMessage msg) {
+    final data = msg.data;
+    if (data is Map<String, dynamic> && data['fromId'] != null) {
+      setState(() => _isTyping = true);
+      _typingDebounce?.cancel();
+      _typingDebounce = Timer(const Duration(seconds: 3), () {
+        if (mounted) setState(() => _isTyping = false);
+      });
+    }
+  }
+
+  void _onGroupMessageRetract(WsMessage msg) {
+    final data = msg.data;
+    if (data is Map<String, dynamic>) {
+      setState(() {
+        for (final m in _messages) {
+          if (m.id == data['msgId']) {
+            m.isRetracted = true;
+            break;
+          }
+        }
+      });
+    }
+  }
+
+  void _onWsReadReceipt(WsMessage msg) {
+    // 群聊已读暂不处理，复杂
+  }
+
+  void _sendTyping() {
+    WsService().sendTyping(targetId: widget.groupId, targetType: 2);
+    _typingDebounce?.cancel();
+    _typingDebounce = Timer(const Duration(seconds: 2), () {});
+  }
+
+  Future<void> _sendFile() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'rar', 'txt', 'mp4', 'apk', 'epub', 'csv']);
+    if (result == null || result.files.single.path == null) return;
+    setState(() => _showExtraPanel = false);
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('发送中...'), duration: Duration(seconds: 1)));
+    try {
+      final resp = await ApiService().uploadChatFile(File(result.files.single.path!));
+      if (resp['code'] == 0) {
+        final data = resp['data'];
+        final content = jsonEncode({
+          'url': data['url'],
+          'fileName': data['originalName'] ?? '',
+          'fileSize': data['fileSize'] ?? 0,
+          'fileExt': data['fileExt'] ?? '',
+        });
+        WsService().sendGroupMessage(groupId: widget.groupId, content: content, msgType: 4);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(resp['message'] ?? '文件上传失败')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('网络错误')));
+    }
   }
 
   void _scrollToBottom() {
@@ -146,11 +238,138 @@ class _GroupChatPageState extends State<GroupChatPage> {
     });
   }
 
+  // ---------- 长按菜单 ----------
+  void _showLongPressMenu(GroupMessage msg) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (msg.isMine(_myId) && !msg.isRetracted) ...[
+              ListTile(
+                leading: const Icon(Icons.undo, color: Colors.orange),
+                title: const Text('撤回', style: TextStyle(color: Colors.orange)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  try {
+                    final resp = await ApiService().retractGroupMessage(widget.groupId, msg.id);
+                    if (resp['code'] == 0) {
+                      WsService().sendGroupRetract(msgId: msg.id);
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已撤回')));
+                    } else {
+                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(resp['message'] ?? '撤回失败')));
+                    }
+                  } catch (e) {
+                    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('网络错误')));
+                  }
+                },
+              ),
+            ],
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.black54),
+              title: const Text('删除本地记录', style: TextStyle(color: Colors.black)),
+              onTap: () {
+                Navigator.pop(context);
+                setState(() => _messages.removeWhere((m) => m.id == msg.id));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _send() {
     final text = _inputController.text.trim();
     if (text.isEmpty) return;
     WsService().sendGroupMessage(groupId: widget.groupId, content: text);
     _inputController.clear();
+    setState(() => _showExtraPanel = false);
+  }
+
+  // ---------- 发送图片 ----------
+  Future<void> _sendImage() async {
+    final picker = ImagePicker();
+    final XFile? picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    setState(() => _showExtraPanel = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('发送中...'), duration: Duration(seconds: 1)),
+    );
+
+    try {
+      final resp = await ApiService().uploadChatImage(File(picked.path));
+      if (resp['code'] == 0) {
+        final url = resp['data']['url'];
+        WsService().sendGroupMessage(
+          groupId: widget.groupId,
+          content: url,
+          msgType: 2,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(resp['message'] ?? '图片上传失败')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('网络错误')),
+      );
+    }
+  }
+
+  // ---------- 语音 ----------
+  Future<void> _startRecord() async {
+    setState(() {
+      _showRecordIndicator = true;
+      _showExtraPanel = false;
+    });
+    await VoiceRecordService().startRecord();
+  }
+
+  Future<void> _stopRecordAndSend() async {
+    setState(() => _showRecordIndicator = false);
+    final result = await VoiceRecordService().stopRecord();
+    if (result == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('录音太短，取消发送')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('发送中 ${result.duration}″语音...'), duration: const Duration(seconds: 1)),
+    );
+
+    try {
+      final resp = await ApiService().uploadChatVoice(result.file, duration: result.duration);
+      if (resp['code'] == 0) {
+        final url = resp['data']['url'];
+        WsService().sendGroupMessage(
+          groupId: widget.groupId,
+          content: url,
+          msgType: 3,
+          duration: result.duration,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(resp['message'] ?? '语音上传失败')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('网络错误')),
+      );
+    }
+  }
+
+  void _cancelRecord() {
+    VoiceRecordService().stopRecord();
+    setState(() => _showRecordIndicator = false);
   }
 
   @override
@@ -173,10 +392,22 @@ class _GroupChatPageState extends State<GroupChatPage> {
                     icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
-                  Expanded(child: Text(widget.groupName, style: const TextStyle(color: Colors.black, fontSize: 17, fontWeight: FontWeight.w700), textAlign: TextAlign.center)),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(widget.groupName, style: const TextStyle(color: Colors.black, fontSize: 17, fontWeight: FontWeight.w700)),
+                        if (_isTyping) const Text('有人正在输入...', style: TextStyle(color: Colors.black45, fontSize: 11, fontStyle: FontStyle.italic)),
+                      ],
+                    ),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.info_outline, color: Colors.black54),
-                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => GroupInfoPage(groupId: widget.groupId, groupName: widget.groupName))),
+                    onPressed: () {
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => GroupInfoPage(groupId: widget.groupId, groupName: widget.groupName),
+                      ));
+                    },
                   ),
                 ],
               ),
@@ -193,54 +424,108 @@ class _GroupChatPageState extends State<GroupChatPage> {
                           controller: _scrollController,
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           itemCount: _messages.length,
-                          itemBuilder: (_, i) => _buildMessageItem(_messages[i]),
+                          itemBuilder: (_, i) => _buildMessageItem(_messages[i], i),
                         ),
             ),
           ),
           _buildInputBar(),
+          if (_showExtraPanel) ChatExtraPanel(
+            onPickImage: _sendImage,
+            onRecordVoice: _startRecord,
+            onPickFile: _sendFile,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildMessageItem(dynamic msg) {
-    bool isMine;
-    String content;
-    String senderNickname;
-
-    if (msg is GroupMessage) {
-      isMine = msg.senderId == _myId;
-      content = msg.content;
-      senderNickname = msg.senderNickname;
-    } else {
-      return const SizedBox.shrink();
-    }
+  Widget _buildMessageItem(GroupMessage msg, int index) {
+    final isMine = msg.senderId == _myId;
 
     return Column(
       crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        if (!isMine)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 8, 8, 2),
-            child: Text(senderNickname, style: const TextStyle(color: Colors.black38, fontSize: 11)),
-          ),
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
-          decoration: BoxDecoration(
-            color: isMine ? const Color(0xFF2196F3) : Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(16),
-              topRight: const Radius.circular(16),
-              bottomLeft: Radius.circular(isMine ? 16 : 4),
-              bottomRight: Radius.circular(isMine ? 4 : 16),
+        MessageAnimatedBubble(
+          isMine: isMine,
+          index: index,
+          child: GestureDetector(
+            onLongPress: () => _showLongPressMenu(msg),
+            child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!isMine) ...[
+                  _buildAvatar(msg.senderAvatar),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: Text(msg.senderNickname, style: const TextStyle(color: Colors.black38, fontSize: 11)),
+                        ),
+                        _buildBubbleContent(msg, false),
+                      ],
+                    ),
+                  ),
+                ],
+                if (isMine) ...[
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: _buildBubbleContent(msg, true),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  _buildAvatar(_myAvatar),
+                ],
+              ],
             ),
-            border: isMine ? null : Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+            ),
           ),
-          child: Text(content, style: TextStyle(color: isMine ? Colors.white : Colors.black, fontSize: 15)),
         ),
       ],
+    );
+  }
+
+  Widget _buildBubbleContent(GroupMessage msg, bool isMine) {
+    // 图片
+    if (msg.isImage) {
+      return ImageBubble(imageUrl: msg.content, isMine: isMine);
+    }
+    // 语音
+    if (msg.isVoice) {
+      return VoiceBubble(voiceUrl: msg.content, duration: msg.duration, isMine: isMine);
+    }
+
+    // 文字
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      constraints: BoxConstraints(maxWidth: 260),
+      decoration: BoxDecoration(
+        color: isMine ? const Color(0xFF2196F3) : Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(16),
+          topRight: const Radius.circular(16),
+          bottomLeft: Radius.circular(isMine ? 16 : 4),
+          bottomRight: Radius.circular(isMine ? 4 : 16),
+        ),
+        border: isMine ? null : Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+      ),
+      child: Text(msg.content, style: TextStyle(color: isMine ? Colors.white : Colors.black, fontSize: 15)),
+    );
+  }
+
+  Widget _buildAvatar(String? avatarUrl) {
+    return Container(
+      width: 32, height: 32,
+      decoration: BoxDecoration(color: Colors.grey.shade200, shape: BoxShape.circle),
+      child: (avatarUrl != null && avatarUrl.isNotEmpty)
+          ? ClipOval(child: Image.network(GlobalConfig.avatarUrl(avatarUrl), fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.person, color: Colors.black45, size: 18)))
+          : const Icon(Icons.person, color: Colors.black45, size: 18),
     );
   }
 
@@ -253,42 +538,72 @@ class _GroupChatPageState extends State<GroupChatPage> {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+            if (_showRecordIndicator)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.red.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: TextField(
-                  controller: _inputController,
-                  decoration: const InputDecoration(
-                    hintText: '输入消息...',
-                    hintStyle: TextStyle(color: Colors.black38),
-                    isDense: true,
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 10),
+                child: const Text('正在录音...松开发送', style: TextStyle(color: Colors.red, fontSize: 13), textAlign: TextAlign.center),
+              ),
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () => setState(() => _showExtraPanel = !_showExtraPanel),
+                  child: Container(
+                    width: 38, height: 38,
+                    child: Icon(Icons.add, color: _showExtraPanel ? const Color(0xFF2196F3) : Colors.black54, size: 24),
                   ),
-                  maxLines: null,
-                  textInputAction: TextInputAction.send,
-                  onSubmitted: (_) => _send(),
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 40, height: 40,
-              child: ElevatedButton(
-                onPressed: _send,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2196F3),
-                  padding: EdgeInsets.zero,
-                  shape: const CircleBorder(),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: TextField(
+                      controller: _inputController,
+                      onChanged: (_) => _sendTyping(),
+                      decoration: const InputDecoration(
+                        hintText: '输入消息...', hintStyle: TextStyle(color: Colors.black38),
+                        isDense: true, border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      maxLines: null, textInputAction: TextInputAction.send, onSubmitted: (_) => _send(),
+                    ),
+                  ),
                 ),
-                child: const Icon(Icons.send, color: Colors.white, size: 18),
-              ),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onLongPress: _startRecord,
+                  onLongPressEnd: (_) => _stopRecordAndSend(),
+                  onLongPressCancel: _cancelRecord,
+                  child: const SizedBox(
+                    width: 38, height: 38,
+                    child: Icon(Icons.mic_none, color: Colors.black54, size: 22),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                SizedBox(
+                  width: 40, height: 40,
+                  child: ElevatedButton(
+                    onPressed: _send,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2196F3),
+                      padding: EdgeInsets.zero,
+                      shape: const CircleBorder(),
+                    ),
+                    child: const Icon(Icons.send, color: Colors.white, size: 18),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

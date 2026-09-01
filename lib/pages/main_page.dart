@@ -1,11 +1,12 @@
 // ============================================================
-// 主页面：简约白底 + 底部导航 + 强制用户守则检查
+// 主页面：简约白底 + 4Tab导航 + 强制用户守则检查
 // ============================================================
 
 import 'package:flutter/material.dart';
 import 'package:chat_app/services/storage_service.dart';
 import 'package:chat_app/pages/message_page.dart';
 import 'package:chat_app/pages/contact_page.dart';
+import 'package:chat_app/pages/moment_page.dart';
 import 'package:chat_app/pages/mine_page.dart';
 import 'package:chat_app/pages/user_agreement_page.dart';
 
@@ -23,6 +24,7 @@ class _MainPageState extends State<MainPage> {
   final List<Widget> _pages = const [
     MessagePage(),
     ContactPage(),
+    MomentPage(),
     MinePage(),
   ];
 
@@ -65,7 +67,8 @@ class _MainPageState extends State<MainPage> {
             children: [
               _buildItem(0, Icons.chat_bubble_outline, Icons.chat_bubble, '消息'),
               _buildItem(1, Icons.contacts_outlined, Icons.contacts, '联系人'),
-              _buildItem(2, Icons.person_outline, Icons.person, '我'),
+              _buildItem(2, Icons.public_outlined, Icons.public, '动态'),
+              _buildItem(3, Icons.person_outline, Icons.person, '我'),
             ],
           ),
         ),
@@ -84,9 +87,25 @@ class _MainPageState extends State<MainPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(selected ? activeIcon : icon, color: selected ? Colors.black : Colors.black45, size: 24),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 150),
+                child: Icon(
+                  selected ? activeIcon : icon,
+                  color: selected ? const Color(0xFF2196F3) : Colors.black45,
+                  size: 24,
+                  key: ValueKey(selected),
+                ),
+              ),
               const SizedBox(height: 3),
-              Text(label, style: TextStyle(color: selected ? Colors.black : Colors.black45, fontSize: 11, fontWeight: selected ? FontWeight.w600 : FontWeight.normal)),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 150),
+                style: TextStyle(
+                  color: selected ? const Color(0xFF2196F3) : Colors.black45,
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                ),
+                child: Text(label),
+              ),
             ],
           ),
         ),

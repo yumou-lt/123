@@ -10,8 +10,11 @@ def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
 if (flutterVersionCode == null) { flutterVersionCode = '1' }
 def flutterVersionName = localProperties.getProperty('flutter.versionName')
 if (flutterVersionName == null) { flutterVersionName = '1.0' }
+
 def flutterRoot = localProperties.getProperty('flutter.sdk')
-if (flutterRoot == null) { throw new GradleException("flutter.sdk not set in local.properties") }
+if (flutterRoot == null) {
+    throw new GradleException("Flutter SDK not found. Run flutter create .")
+}
 
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
@@ -33,7 +36,7 @@ android {
     }
     defaultConfig {
         applicationId "com.example.chat_app"
-        minSdk 21
+        minSdk 23
         targetSdk 35
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
@@ -73,5 +76,5 @@ android {
 flutter { source '../..' }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.22"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.0"
 }

@@ -1,107 +1,78 @@
-# ============================================================
-# GitHub Actions - Flutter iOS IPA 云打包
-# ------------------------------------------------------------
-# 功能：在 GitHub 提供的 macOS 构建机上编译 Flutter 项目，产出 .ipa
-# 触发：手动触发（workflow_dispatch），不自动跑，省 macOS 分钟数
-# 说明：默认打未签名包（--no-codesign），只能验证构建流程
-#       要装真机/上架需后续配置 Apple 签名证书
-# ============================================================
-
 name: Build iOS IPA
 
 on:
-  workflow_dispatch:        # 仅手动触发
-    inputs:
-      signed:
-        description: '是否签名构建（需要配置 Apple 证书 Secrets）'
-        type: boolean
-        default: false
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  build-ios-ipa:
-    runs-on: macos-latest   # GitHub 提供的 macOS runner（Apple Silicon）
-    timeout-minutes: 60
-
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 30
     steps:
-      # ---------- 1. 拉取代码 ----------
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # ---------- 2. 安装 Flutter SDK ----------
-      - name: Setup Flutter
+      - name: 安装 Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          channel: stable
-          cache: true
+          flutter-version: '3.27.0'
+          channel: 'stable'
 
-      - name: Flutter version
-        run: flutter --version
+      - name: 安装 CocoaPods
+        run: brew install cocoapods
 
-      # ---------- 3. 安装 Dart 依赖 ----------
-      - name: Install dependencies
+      - name: Flutter 依赖
         run: flutter pub get
 
-      # ---------- 4. 预缓存 iOS 构建工具（自动生成 Podfile） ----------
-      - name: Precache iOS tools
-        run: flutter precache --ios
-
-      # ---------- 5. 安装 iOS Pods 依赖 ----------
-      - name: Install iOS CocoaPods
+      - name: Pod 依赖
         run: |
           cd ios
-          pod install || pod install --repo-update || echo "pod install skipped, will be handled by flutter build"
+          pod install
           cd ..
 
-      # ---------- 6. 构建 IPA ----------
-      - name: Build unsigned IPA
-        if: ${{ !inputs.signed }}
-        run: flutter build ipa --release --no-codesign
-
-      - name: Build signed IPA
-        if: ${{ inputs.signed }}
-        env:
-          # 签名所需的 Secrets（在 GitHub 仓库 Settings → Secrets → Actions 中配置）
-          # 目前留空，先跑未签名构建
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      - name: 关闭签名（pbxproj）
         run: |
-          # 导入证书到临时钥匙串
-          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
-          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          PBX="ios/Runner.xcodeproj/project.pbxproj"
+          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = ""/g' "$PBX"
+          sed -i '' 's/CODE_SIGN_IDENTITY = "Apple Development"/CODE_SIGN_IDENTITY = ""/g' "$PBX"
+          sed -i '' 's/CODE_SIGNING_REQUIRED = YES;/CODE_SIGNING_REQUIRED = NO;/g' "$PBX"
+          sed -i '' 's/DEVELOPMENT_TEAM = .*;//g' "$PBX"
+          sed -i '' 's/ProvisioningStyle = Automatic;/ProvisioningStyle = Manual;/g' "$PBX"
 
-          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode > $CERTIFICATE_PATH
-          echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode > $PP_PATH
+      - name: Flutter 编译 Dart
+        run: flutter build ios --release --no-codesign || true
 
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security import $CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security list-keychains -d user -s $KEYCHAIN_PATH
-
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
-
-          flutter build ipa --release
-
-          # 清理钥匙串
-          security delete-keychain $KEYCHAIN_PATH
-
-      # ---------- 7. 定位产物 ----------
-      - name: Locate IPA
+      - name: xcodebuild 编译
         run: |
-          echo "=== Build artifacts ==="
-          ls -la build/ios/ipa/ || echo "IPA not found in build/ios/ipa/"
-          find build/ios -name "*.ipa" 2>/dev/null || true
+          xcodebuild build \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/xcode \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM=""
 
-      # ---------- 8. 上传 IPA 产物 ----------
-      - name: Upload IPA artifact
+      - name: 打包 IPA
+        run: |
+          APP="build/xcode/Build/Products/Release-iphoneos/Runner.app"
+          echo "=== .app ==="
+          du -sh "$APP"
+          ls -la "$APP"
+          echo ""
+          rm -rf Payload ChatApp.ipa
+          mkdir -p Payload
+          cp -R "$APP" Payload/Runner.app
+          zip -r -9 ChatApp.ipa Payload
+          rm -rf Payload
+          echo "=== IPA ==="
+          ls -la ChatApp.ipa
+          du -sh ChatApp.ipa
+
+      - name: 上传 IPA
         uses: actions/upload-artifact@v4
         with:
-          name: chat_app_ios_ipa
-          path: build/ios/ipa/*.ipa
-          retention-days: 30
-          if-no-files-found: error
+          name: ChatApp-iOS
+          path: ChatApp.ipa

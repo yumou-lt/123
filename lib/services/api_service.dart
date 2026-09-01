@@ -216,4 +216,159 @@ class ApiService {
     final resp = await dio.get('/announcement/latest');
     return resp.data;
   }
+
+  // ---------- 文件上传 ----------
+  Future<Map<String, dynamic>> uploadChatImage(File file) async {
+    final ext = file.path.split('.').last.toLowerCase();
+    String contentType;
+    if (ext == 'png') contentType = 'image/png';
+    else if (ext == 'gif') contentType = 'image/gif';
+    else contentType = 'image/jpeg';
+
+    final formData = FormData.fromMap({
+      'image': await MultipartFile.fromFile(
+        file.path,
+        filename: 'chat_$ext',
+        contentType: DioMediaType.parse(contentType),
+      ),
+    });
+    final resp = await _dio.post('/upload/chat-image', data: formData);
+    return resp.data;
+  }
+
+  Future<Map<String, dynamic>> uploadChatVoice(File file, {required int duration}) async {
+    final ext = file.path.split('.').last.toLowerCase();
+    String contentType = 'audio/mp3';
+    if (ext == 'amr') contentType = 'audio/amr';
+    else if (ext == 'wav') contentType = 'audio/wav';
+    else if (ext == 'm4a') contentType = 'audio/mp4';
+
+    final formData = FormData.fromMap({
+      'voice': await MultipartFile.fromFile(
+        file.path,
+        filename: 'voice_$ext',
+        contentType: DioMediaType.parse(contentType),
+      ),
+      'duration': duration.toString(),
+    });
+    final resp = await _dio.post('/upload/chat-voice', data: formData);
+    return resp.data;
+  }
+
+  Future<Map<String, dynamic>> uploadMomentImages(List<File> files) async {
+    final formData = FormData();
+    for (var i = 0; i < files.length; i++) {
+      final ext = files[i].path.split('.').last.toLowerCase();
+      final contentType = ext == 'png' ? 'image/png' : 'image/jpeg';
+      formData.files.add(MapEntry(
+        'images',
+        await MultipartFile.fromFile(
+          files[i].path,
+          filename: 'moment_$i.$ext',
+          contentType: DioMediaType.parse(contentType),
+        ),
+      ));
+    }
+    final resp = await _dio.post('/upload/moment-images', data: formData);
+    return resp.data;
+  }
+
+  // ---------- 动态/朋友圈 ----------
+  Future<Map<String, dynamic>> publishMoment({required String content, List<String>? images, String? location}) async {
+    return post('/moment/publish', {
+      'content': content,
+      'images': images ?? [],
+      'location': location ?? '',
+    });
+  }
+
+  Future<Map<String, dynamic>> getMomentFeed({int page = 1, int pageSize = 20}) async {
+    return get('/moment/feed', query: {'page': page, 'pageSize': pageSize});
+  }
+
+  Future<Map<String, dynamic>> getUserMoments(int userId, {int page = 1, int pageSize = 20}) async {
+    return get('/moment/user/$userId', query: {'page': page, 'pageSize': pageSize});
+  }
+
+  Future<Map<String, dynamic>> likeMoment(int momentId) async {
+    return post('/moment/$momentId/like', {});
+  }
+
+  Future<Map<String, dynamic>> commentMoment(int momentId, {required String content, int? replyToUserId}) async {
+    return post('/moment/$momentId/comment', {
+      'content': content,
+      'replyToUserId': replyToUserId,
+    });
+  }
+
+  Future<Map<String, dynamic>> getMomentComments(int momentId) async {
+    return get('/moment/$momentId/comments');
+  }
+
+  Future<Map<String, dynamic>> deleteMoment(int momentId) async {
+    return delete('/moment/$momentId');
+  }
+
+  // ---------- 置顶聊天 ----------
+  Future<Map<String, dynamic>> pinConversation(int targetId, {int targetType = 1}) async {
+    return post('/message/pin', {'targetId': targetId, 'targetType': targetType});
+  }
+
+  Future<Map<String, dynamic>> unpinConversation(int targetId, {int targetType = 1}) async {
+    return delete('/message/pin?targetId=$targetId&targetType=$targetType');
+  }
+
+  Future<Map<String, dynamic>> getPinnedConversations() async => get('/message/pins');
+
+  // ---------- 消息搜索 ----------
+  Future<Map<String, dynamic>> searchMessages(String keyword) async {
+    return get('/message/search', query: {'keyword': keyword});
+  }
+
+  // ---------- 文件上传 ----------
+  Future<Map<String, dynamic>> uploadChatFile(File file) async {
+    final ext = file.path.split('.').last.toLowerCase();
+    String contentType;
+    if (ext == 'pdf') contentType = 'application/pdf';
+    else if (ext == 'zip' || ext == 'rar') contentType = 'application/zip';
+    else if (ext == 'doc' || ext == 'docx') contentType = 'application/msword';
+    else if (ext == 'xls' || ext == 'xlsx') contentType = 'application/vnd.ms-excel';
+    else if (ext == 'mp4' || ext == 'avi') contentType = 'video/mp4';
+    else contentType = 'application/octet-stream';
+
+    final formData = FormData.fromMap({
+      'file': await MultipartFile.fromFile(
+        file.path,
+        filename: file.path.split('\\').last.split('/').last, // 安全取文件名
+        contentType: DioMediaType.parse(contentType),
+      ),
+    });
+    final resp = await _dio.post('/upload/chat-file', data: formData);
+    return resp.data;
+  }
+
+  // ---------- 群聊增强 ----------
+  Future<Map<String, dynamic>> getGroupAnnouncement(int groupId) async {
+    return get('/group/$groupId/announcement');
+  }
+
+  Future<Map<String, dynamic>> setGroupAnnouncement(int groupId, String announcement) async {
+    return put('/group/$groupId/announcement', {'announcement': announcement});
+  }
+
+  Future<Map<String, dynamic>> retractGroupMessage(int groupId, int msgId) async {
+    return post('/group/$groupId/retract', {'msgId': msgId});
+  }
+
+  Future<Map<String, dynamic>> setGroupAdmin(int groupId, int userId, {int role = 1}) async {
+    return post('/group/$groupId/admin', {'userId': userId, 'role': role});
+  }
+
+  Future<Map<String, dynamic>> muteGroupMember(int groupId, int userId, {int minutes = 5}) async {
+    return post('/group/$groupId/mute', {'userId': userId, 'minutes': minutes});
+  }
+
+  Future<Map<String, dynamic>> kickGroupMember(int groupId, int userId) async {
+    return post('/group/$groupId/kick', {'userId': userId});
+  }
 }

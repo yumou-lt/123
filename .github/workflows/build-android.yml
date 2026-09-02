@@ -36,7 +36,10 @@ jobs:
 
       - name: 安装 SDK Platform 35 + Build-Tools 35 + NDK（本仓库 compileSdk/targetSdk=35 所需）
         run: |
-          yes | sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973"
+          SDKMANAGER=$(ls "$ANDROID_HOME/cmdline-tools"/*/bin/sdkmanager 2>/dev/null | head -1)
+          if [ -z "$SDKMANAGER" ]; then SDKMANAGER=$(ls "$ANDROID_HOME/tools/bin/sdkmanager" 2>/dev/null | head -1); fi
+          echo "Using sdkmanager: ${SDKMANAGER:-NONE}"
+          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973"
 
       - name: Flutter 依赖
         run: flutter pub get

@@ -8,7 +8,9 @@ on:
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
+    env:
+      ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
     steps:
       - uses: actions/checkout@v4
 
@@ -24,11 +26,21 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
+      - name: 让 Flutter 认得 Android SDK 路径
+        run: flutter config --android-sdk $ANDROID_HOME
+
       - name: 接受 Android SDK 许可
-        run: yes | sdkmanager --licenses || true
+        run: |
+          mkdir -p "$ANDROID_HOME/licenses"
+          echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
+          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> "$ANDROID_HOME/licenses/android-sdk-license"
+          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
 
       - name: Flutter 依赖
         run: flutter pub get
+
+      - name: 诊断环境
+        run: flutter doctor -v
 
       - name: 构建 release APK (arm64)
         run: flutter build apk --release --target-platform android-arm64

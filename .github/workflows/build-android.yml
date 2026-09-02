@@ -9,8 +9,6 @@ jobs:
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
     steps:
       - uses: actions/checkout@v4
 

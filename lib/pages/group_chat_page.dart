@@ -16,6 +16,8 @@ import 'package:chat_app/services/voice_service.dart';
 import 'package:chat_app/models/message.dart';
 import 'package:chat_app/pages/group_info_page.dart';
 import 'package:chat_app/widgets/chat_widgets.dart';
+import 'package:chat_app/widgets/vip_icon.dart';
+import 'package:chat_app/widgets/mj_effect.dart';
 import 'package:intl/intl.dart';
 
 class GroupChatPage extends StatefulWidget {
@@ -31,6 +33,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
   final List<GroupMessage> _messages = [];
   final List<WsMessage> _pendingWsMessages = [];
   final _inputController = TextEditingController();
+  final _inputFocusNode = FocusNode();
   final _scrollController = ScrollController();
   bool _loading = true;
   bool _loadingHistory = true;
@@ -68,6 +71,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
     WsService().off('group_message_retract', _onGroupMessageRetract);
     WsService().off('read_receipt', _onWsReadReceipt);
     _inputController.dispose();
+    _inputFocusNode.dispose();
     _scrollController.dispose();
     VoiceRecordService().dispose();
     super.dispose();
@@ -161,10 +165,20 @@ class _GroupChatPageState extends State<GroupChatPage> {
         createTime: data['createTime'] ?? '',
         msgType: data['msgType'] ?? 0,
         duration: data['duration'] ?? 0,
+        senderIsVip: (data['senderIsVip'] ?? 0) as int,
+        senderBadge: data['senderBadge'] as String?,
       ));
       _messages.sort((a, b) => _timeOf(a).compareTo(_timeOf(b)));
     });
     _scrollToBottom();
+
+    // MJ 特效
+    if ((data['msgType'] ?? 0) == 0 && mounted) {
+      final text = (data['content'] ?? '').trim().toLowerCase();
+      if (text == 'mj') {
+        MjEffect().trigger(context: context, senderId: data['senderId'] ?? 0);
+      }
+    }
   }
 
   void _onWsTyping(WsMessage msg) {
@@ -288,6 +302,10 @@ class _GroupChatPageState extends State<GroupChatPage> {
     WsService().sendGroupMessage(groupId: widget.groupId, content: text);
     _inputController.clear();
     setState(() => _showExtraPanel = false);
+    // 等渲染完再请求 focus
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) FocusScope.of(context).requestFocus(_inputFocusNode);
+    });
   }
 
   // ---------- 发送图片 ----------
@@ -456,7 +474,16 @@ class _GroupChatPageState extends State<GroupChatPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (!isMine) ...[
-                  _buildAvatar(msg.senderAvatar),
+                  Stack(
+                    children: [
+                      _buildAvatar(msg.senderAvatar),
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: VipIcon(size: 14, isVip: msg.senderIsVip == 1, badge: msg.senderBadge),
+                      ),
+                    ],
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Column(
@@ -464,7 +491,14 @@ class _GroupChatPageState extends State<GroupChatPage> {
                       children: [
                         Padding(
                           padding: const EdgeInsets.only(bottom: 2),
-                          child: Text(msg.senderNickname, style: const TextStyle(color: Colors.black38, fontSize: 11)),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(msg.senderNickname, style: const TextStyle(color: Colors.black38, fontSize: 11)),
+                              const SizedBox(width: 3),
+                              VipIcon(size: 12, isVip: msg.senderIsVip == 1, badge: msg.senderBadge),
+                            ],
+                          ),
                         ),
                         _buildBubbleContent(msg, false),
                       ],
@@ -570,13 +604,14 @@ class _GroupChatPageState extends State<GroupChatPage> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: TextField(
+                      focusNode: _inputFocusNode,
                       controller: _inputController,
                       onChanged: (_) => _sendTyping(),
                       decoration: const InputDecoration(
                         hintText: '输入消息...', hintStyle: TextStyle(color: Colors.black38),
                         isDense: true, border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 10),
                       ),
-                      maxLines: null, textInputAction: TextInputAction.send, onSubmitted: (_) => _send(),
+                      maxLines: null, textInputAction: TextInputAction.newline,
                     ),
                   ),
                 ),

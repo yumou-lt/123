@@ -371,4 +371,16 @@ class ApiService {
   Future<Map<String, dynamic>> kickGroupMember(int groupId, int userId) async {
     return post('/group/$groupId/kick', {'userId': userId});
   }
+
+  // ---------- 会员/签到 ----------
+  Future<Map<String, dynamic>> signIn() async => post('/user/sign-in', {});
+
+  Future<List<dynamic>> getBadges() async {
+    final r = await get('/user/badges');
+    return (r['data'] as List<dynamic>);
+  }
+
+  Future<Map<String, dynamic>> equipBadge(String badgeId, bool equip) async {
+    return post('/user/badges/equip', {'badgeId': badgeId, 'equip': equip});
+  }
 }

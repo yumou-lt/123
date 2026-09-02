@@ -285,7 +285,13 @@ class _MessagePageState extends State<MessagePage> {
           );
         } else {
           Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => ChatPage(friendId: data['userId'], friendName: name, friendAvatar: avatar)),
+            MaterialPageRoute(builder: (_) => ChatPage(
+              friendId: data['userId'],
+              friendName: name,
+              friendAvatar: avatar,
+              friendIsVip: data['is_vip'] == 1,
+              friendEquippedBadge: data['equipped_badge'],
+            )),
           );
         }
       },

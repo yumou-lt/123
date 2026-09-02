@@ -17,13 +17,17 @@ import 'package:chat_app/models/message.dart';
 import 'package:chat_app/pages/group_chat_page.dart';
 import 'package:chat_app/pages/group_info_page.dart';
 import 'package:chat_app/widgets/chat_widgets.dart';
+import 'package:chat_app/widgets/vip_icon.dart';
+import 'package:chat_app/widgets/mj_effect.dart';
 import 'package:intl/intl.dart';
 
 class ChatPage extends StatefulWidget {
   final int friendId;
   final String friendName;
   final String friendAvatar;
-  const ChatPage({super.key, required this.friendId, required this.friendName, this.friendAvatar = ''});
+  final bool friendIsVip;
+  final String? friendEquippedBadge;
+  const ChatPage({super.key, required this.friendId, required this.friendName, this.friendAvatar = '', this.friendIsVip = false, this.friendEquippedBadge});
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -33,10 +37,13 @@ class _ChatPageState extends State<ChatPage> {
   final List<ChatMessage> _messages = [];
   final List<WsMessage> _pendingWsMessages = [];
   final _inputController = TextEditingController();
+  final _inputFocusNode = FocusNode();
   final _scrollController = ScrollController();
   bool _loading = true;
   bool _loadingHistory = true;
+  bool _initialLoadDone = false;
   final Set<int> _seenMsgIds = {};
+  final Set<int> _initialMsgIds = {}; // 初始加载的历史消息，不加动画
   ChatMessage? _replyingTo;
 
   // 新增：面板控制
@@ -74,6 +81,7 @@ class _ChatPageState extends State<ChatPage> {
     WsService().off('read_receipt', _onWsReadReceipt);
     WsService().offReconnected(_loadHistory);
     _inputController.dispose();
+    _inputFocusNode.dispose();
     _scrollController.dispose();
     VoiceRecordService().dispose();
     super.dispose();
@@ -93,6 +101,8 @@ class _ChatPageState extends State<ChatPage> {
       replyToId: d['replyToId'],
       replyContent: d['replyContent'],
       duration: d['duration'] ?? 0,
+      senderIsVip: (d['senderIsVip'] ?? 0) as int,
+      senderBadge: d['senderBadge'] as String?,
     );
   }
 
@@ -115,9 +125,11 @@ class _ChatPageState extends State<ChatPage> {
       setState(() {
         _messages.clear();
         _seenMsgIds.clear();
+        _initialMsgIds.clear();
         for (final m in list) {
           final msg = ChatMessage.fromJson(m);
           _seenMsgIds.add(msg.id);
+          _initialMsgIds.add(msg.id); // 历史消息不加动画
           _messages.add(msg);
         }
         for (final ws in _pendingWsMessages) {
@@ -134,6 +146,7 @@ class _ChatPageState extends State<ChatPage> {
           return ta != tb ? ta.compareTo(tb) : a.id.compareTo(b.id);
         });
         _loading = false;
+        _initialLoadDone = true;
       });
       _scrollToBottom();
     } catch (e) {
@@ -154,6 +167,8 @@ class _ChatPageState extends State<ChatPage> {
       _messages.sort((a, b) { final ta = _timeOf(a), tb = _timeOf(b); return ta != tb ? ta.compareTo(tb) : a.id.compareTo(b.id); });
     });
     _scrollToBottom();
+    // MJ 特效触发
+    _checkMjEffect(chatMsg);
   }
 
   void _onWsSent(WsMessage msg) {
@@ -171,6 +186,16 @@ class _ChatPageState extends State<ChatPage> {
       _messages.sort((a, b) { final ta = _timeOf(a), tb = _timeOf(b); return ta != tb ? ta.compareTo(tb) : a.id.compareTo(b.id); });
     });
     _scrollToBottom();
+    // 自己发 mj 也触发
+    _checkMjEffect(chatMsg);
+  }
+
+  void _checkMjEffect(ChatMessage msg) {
+    if (msg.msgType != 0) return; // 只对文字消息生效
+    if (!mounted) return;
+    if (msg.content.trim().toLowerCase() == 'mj') {
+      MjEffect().trigger(context: context, senderId: msg.senderId);
+    }
   }
 
   void _onWsRetracted(WsMessage msg) {
@@ -258,6 +283,11 @@ class _ChatPageState extends State<ChatPage> {
     setState(() {
       _replyingTo = null;
       _showExtraPanel = false;
+      _showEmojiPanel = false;
+    });
+    // 等 setState 渲染完再请求 focus，否则 TextField 重建后焦点丢失
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) FocusScope.of(context).requestFocus(_inputFocusNode);
     });
   }
 
@@ -452,7 +482,15 @@ class _ChatPageState extends State<ChatPage> {
                   Expanded(
                     child: _isTyping
                         ? const Text('对方正在输入...', style: TextStyle(color: Colors.black45, fontSize: 14, fontStyle: FontStyle.italic), textAlign: TextAlign.center)
-                        : Text(widget.friendName, style: const TextStyle(color: Colors.black, fontSize: 17, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(widget.friendName, style: const TextStyle(color: Colors.black, fontSize: 17, fontWeight: FontWeight.w700)),
+                              const SizedBox(width: 4),
+                              VipIcon(size: 14, isVip: widget.friendIsVip, badge: widget.friendEquippedBadge),
+                            ],
+                          ),
                   ),
                   const SizedBox(width: 40),
                 ],
@@ -500,6 +538,8 @@ class _ChatPageState extends State<ChatPage> {
   // ---------- 消息气泡 ----------
   Widget _buildMessageItem(ChatMessage msg, int index) {
     final isMine = msg.isMine(_myId);
+    // 只有初始加载完之后的新消息才动画
+    final shouldAnimate = _initialLoadDone && !_initialMsgIds.contains(msg.id);
 
     if (msg.isRetracted) {
       return Padding(
@@ -529,6 +569,7 @@ class _ChatPageState extends State<ChatPage> {
     return MessageAnimatedBubble(
       isMine: isMine,
       index: index,
+      shouldAnimate: shouldAnimate,
       child: GestureDetector(
         onLongPress: () => _showLongPressMenu(msg),
         child: Padding(
@@ -537,7 +578,16 @@ class _ChatPageState extends State<ChatPage> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               if (!isMine) ...[
-                _buildAvatar(msg.senderAvatar.isEmpty ? widget.friendAvatar : msg.senderAvatar),
+                Stack(
+                  children: [
+                    _buildAvatar(msg.senderAvatar.isEmpty ? widget.friendAvatar : msg.senderAvatar),
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: VipIcon(size: 14, isVip: msg.senderIsVip == 1, badge: msg.senderBadge),
+                    ),
+                  ],
+                ),
                 const SizedBox(width: 8),
               ],
               Flexible(
@@ -558,6 +608,9 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildBubbleContent(ChatMessage msg, bool isMine, ChatMessage? replyMsg) {
+    // 适配不同机型：气泡最大宽度 = 屏幕宽度的 72%
+    final screenWidth = MediaQuery.of(context).size.width;
+    final maxBubbleWidth = screenWidth * 0.72;
     // 图片消息
     if (msg.isImage) {
       return ImageBubble(imageUrl: msg.content, isMine: isMine);
@@ -577,7 +630,7 @@ class _ChatPageState extends State<ChatPage> {
       } catch (_) {}
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        constraints: const BoxConstraints(maxWidth: 260),
+        constraints: BoxConstraints(maxWidth: maxBubbleWidth),
         decoration: BoxDecoration(
           color: isMine ? const Color(0xFF2196F3) : Colors.white,
           borderRadius: BorderRadius.only(
@@ -611,7 +664,7 @@ class _ChatPageState extends State<ChatPage> {
     return Container(
       margin: const EdgeInsets.only(top: 2),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-      constraints: BoxConstraints(maxWidth: 260),
+      constraints: BoxConstraints(maxWidth: maxBubbleWidth),
       decoration: BoxDecoration(
         color: isMine ? const Color(0xFF2196F3) : Colors.white,
         borderRadius: BorderRadius.only(
@@ -796,13 +849,14 @@ class _ChatPageState extends State<ChatPage> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: TextField(
+                      focusNode: _inputFocusNode,
                       controller: _inputController,
                       onChanged: (_) => _sendTyping(),
                       decoration: const InputDecoration(
                         hintText: '输入消息...', hintStyle: TextStyle(color: Colors.black38),
                         isDense: true, border: InputBorder.none, contentPadding: EdgeInsets.symmetric(vertical: 10),
                       ),
-                      maxLines: null, textInputAction: TextInputAction.send, onSubmitted: (_) => _send(),
+                      maxLines: null, textInputAction: TextInputAction.newline,
                     ),
                   ),
                 ),

@@ -13,12 +13,14 @@ class MessageAnimatedBubble extends StatefulWidget {
   final Widget child;
   final bool isMine;
   final int index;
+  final bool shouldAnimate;
 
   const MessageAnimatedBubble({
     super.key,
     required this.child,
     required this.isMine,
     required this.index,
+    this.shouldAnimate = true,
   });
 
   @override
@@ -29,30 +31,40 @@ class _MessageAnimatedBubbleState extends State<MessageAnimatedBubble>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _anim;
+  bool _animCompleted = false;
 
   @override
   void initState() {
     super.initState();
+    if (!widget.shouldAnimate) {
+      _animCompleted = true;
+      return;
+    }
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
     final curve = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack);
     _anim = Tween<double>(begin: 0, end: 1).animate(curve);
-    // 延迟一点点，制造波浪效果
-    Future.delayed(Duration(milliseconds: (widget.index % 10) * 30), () {
-      if (mounted) _ctrl.forward();
+    Future.delayed(const Duration(milliseconds: 10), () {
+      if (mounted) {
+        _ctrl.forward();
+        _animCompleted = true;
+      }
     });
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    if (_animCompleted) {
+      _ctrl.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.shouldAnimate) return widget.child;
     return SlideTransition(
       position: Tween<Offset>(
         begin: Offset(widget.isMine ? 0.3 : -0.3, 0),
@@ -90,10 +102,11 @@ class ImageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fullUrl = _fullUrl(imageUrl);
+    final maxImgSize = MediaQuery.of(context).size.width * 0.55;
     return GestureDetector(
       onTap: onTap ?? () => _openFullScreen(context, fullUrl),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 220, maxHeight: 220),
+        constraints: BoxConstraints(maxWidth: maxImgSize, maxHeight: maxImgSize),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10),
           child: Image.network(

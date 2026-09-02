@@ -11,6 +11,9 @@ import 'package:chat_app/services/update_service.dart';
 import 'package:chat_app/pages/edit_profile_page.dart';
 import 'package:chat_app/pages/login_page.dart';
 import 'package:chat_app/pages/user_agreement_page.dart';
+import 'package:chat_app/pages/activity_page.dart';
+import 'package:chat_app/pages/backpack_page.dart';
+import 'package:chat_app/widgets/vip_icon.dart';
 import 'package:chat_app/theme/app_theme.dart';
 
 class MinePage extends StatefulWidget {
@@ -24,6 +27,8 @@ class _MinePageState extends State<MinePage> {
   String _nickname = '';
   String _avatar = '';
   int? _userId;
+  bool _isVip = false;
+  String? _equippedBadge;
   bool _agreementAck = false;
   bool _isCheckingUpdate = false;
   String? _cacheSizeText;
@@ -66,8 +71,19 @@ class _MinePageState extends State<MinePage> {
         final d = resp['data'];
         await StorageService.saveNickname(d['nickname'] ?? '');
         await StorageService.saveAvatar(d['avatar'] ?? '');
+        setState(() {
+          _isVip = d['is_vip'] == 1;
+        });
         _loadLocal();
       }
+      // 拉装备的徽章
+      try {
+        final badges = await ApiService().getBadges();
+        final equipped = badges.where((b) => b['equipped'] == true).toList();
+        setState(() {
+          _equippedBadge = equipped.isNotEmpty ? equipped[0]['id'] as String : null;
+        });
+      } catch (_) {}
     } catch (_) {}
   }
 
@@ -226,23 +242,42 @@ class _MinePageState extends State<MinePage> {
             padding: const EdgeInsets.fromLTRB(20, 32, 20, 24),
             child: Row(
               children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.grey.shade200,
-                  ),
-                  child: _avatar.isNotEmpty
-                      ? ClipOval(child: Image.network(GlobalConfig.avatarUrl(_avatar), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.black54, size: 36)))
-                      : const Icon(Icons.person, color: Colors.black54, size: 36),
+                Stack(
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.grey.shade200,
+                      ),
+                      child: _avatar.isNotEmpty
+                          ? ClipOval(child: Image.network(GlobalConfig.avatarUrl(_avatar), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.black54, size: 36)))
+                          : const Icon(Icons.person, color: Colors.black54, size: 36),
+                    ),
+                    // 右下角会员徽章
+                    if (_isVip || _equippedBadge != null)
+                      Positioned(
+                        right: -2,
+                        bottom: -2,
+                        child: VipIcon(size: 22, isVip: _isVip, badge: _equippedBadge),
+                      ),
+                  ],
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_nickname, style: const TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.w700)),
+                      Row(
+                        children: [
+                          Text(_nickname, style: const TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.w700)),
+                          if (_isVip) ...[
+                            const SizedBox(width: 6),
+                            const VipIcon(size: 16, isVip: true),
+                          ],
+                        ],
+                      ),
                       const SizedBox(height: 4),
                       Text('ID: $_userId', style: const TextStyle(color: Colors.black38, fontSize: 13)),
                     ],
@@ -254,6 +289,16 @@ class _MinePageState extends State<MinePage> {
           // 菜单
           Column(
             children: [
+              // 活动中心
+              _buildItem(Icons.event_available, '活动中心', () {
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ActivityPage())).then((_) => _refreshFromServer());
+              }),
+              _buildDivider(),
+              // 背包
+              _buildItem(Icons.inventory_2_outlined, '我的背包', () {
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BackpackPage())).then((_) => _refreshFromServer());
+              }),
+              _buildDivider(),
               _buildItem(Icons.person, '编辑资料', () {
                 Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfilePage())).then((_) => _refreshFromServer());
               }),

@@ -132,40 +132,57 @@ class _PublishMomentPageState extends State<PublishMomentPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  // 选图按钮
+                  GestureDetector(
+                    onTap: _images.length < 9 ? _pickImages : null,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF5F5F5),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.image_outlined, color: Color(0xFF2196F3), size: 18),
+                          const SizedBox(width: 6),
+                          Text('选择图片 ${_images.length}/9', style: const TextStyle(color: Colors.black54, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   // 图片网格
                   _buildImageGrid(),
                 ],
               ),
             ),
           ),
-          // 底部工具栏
+          // 底部发布按钮
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(top: BorderSide(color: Color(0xFFEEEEEE))),
             ),
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: _images.length < 9 ? _pickImages : null,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.image_outlined, color: Color(0xFF2196F3), size: 18),
-                        const SizedBox(width: 6),
-                        Text('图片 ${_images.length}/9', style: const TextStyle(color: Colors.black54, fontSize: 13)),
-                      ],
-                    ),
+            child: SafeArea(
+              top: false,
+              child: SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _publishing ? null : _publish,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2196F3),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    elevation: 0,
                   ),
+                  child: _publishing
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('发 布', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                 ),
-              ],
+              ),
             ),
           ),
         ],

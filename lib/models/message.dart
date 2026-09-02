@@ -17,6 +17,8 @@ class ChatMessage {
   final int? replyToId;
   final String? replyContent;
   final int duration; // 语音时长(秒)，图片可存0
+  final int senderIsVip;
+  final String? senderBadge;
 
   ChatMessage({
     required this.id,
@@ -32,6 +34,8 @@ class ChatMessage {
     this.replyToId,
     this.replyContent,
     this.duration = 0,
+    this.senderIsVip = 0,
+    this.senderBadge,
   });
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
@@ -49,6 +53,8 @@ class ChatMessage {
       replyToId: json['reply_to_id'] ?? json['replyToId'],
       replyContent: json['reply_content'] ?? json['replyContent'],
       duration: json['duration'] ?? 0,
+      senderIsVip: (json['sender_is_vip'] ?? json['senderIsVip'] ?? 0) as int,
+      senderBadge: json['sender_badge'] as String?,
     );
   }
 
@@ -70,6 +76,8 @@ class GroupMessage {
   bool isRetracted;
   final int msgType;
   final int duration;
+  final int senderIsVip;
+  final String? senderBadge;
 
   GroupMessage({
     required this.id,
@@ -81,6 +89,8 @@ class GroupMessage {
     this.isRetracted = false,
     this.msgType = 0,
     this.duration = 0,
+    this.senderIsVip = 0,
+    this.senderBadge,
   });
 
   factory GroupMessage.fromJson(Map<String, dynamic> json) {
@@ -94,6 +104,8 @@ class GroupMessage {
       isRetracted: (json['is_retracted'] ?? 0) == 1,
       msgType: json['msg_type'] ?? json['msgType'] ?? 0,
       duration: json['duration'] ?? 0,
+      senderIsVip: (json['sender_is_vip'] ?? json['senderIsVip'] ?? 0) as int,
+      senderBadge: json['sender_badge'] as String?,
     );
   }
 

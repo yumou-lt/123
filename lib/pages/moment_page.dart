@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:chat_app/config/global_config.dart';
+import 'package:chat_app/theme/app_theme.dart';
 import 'package:chat_app/services/api_service.dart';
 import 'package:chat_app/services/storage_service.dart';
 import 'package:chat_app/models/message.dart';
@@ -155,11 +156,11 @@ class _MomentPageState extends State<MomentPage> with AutomaticKeepAliveClientMi
   Widget build(BuildContext context) {
     super.build(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.kSurface,
       body: Stack(
         children: [
-          RefreshIndicator(
-            color: const Color(0xFF2196F3),
+            RefreshIndicator(
+            color: AppTheme.kAccent,
             onRefresh: _loadFeed,
             child: _loading
                 ? const Center(child: CircularProgressIndicator(color: Colors.black))
@@ -188,7 +189,7 @@ class _MomentPageState extends State<MomentPage> with AutomaticKeepAliveClientMi
                 ));
                 if (result == true) _loadFeed();
               },
-              backgroundColor: const Color(0xFF2196F3),
+              backgroundColor: AppTheme.kAccent,
               child: const Icon(Icons.add, color: Colors.white, size: 28),
             ),
           ),
@@ -207,6 +208,7 @@ class _MomentPageState extends State<MomentPage> with AutomaticKeepAliveClientMi
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppTheme.kDivider, width: 0.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.04),
@@ -233,7 +235,7 @@ class _MomentPageState extends State<MomentPage> with AutomaticKeepAliveClientMi
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(m.nickname, style: const TextStyle(color: Color(0xFF2196F3), fontWeight: FontWeight.w600, fontSize: 15)),
+                      Text(m.nickname, style: const TextStyle(color: AppTheme.kAccent, fontWeight: FontWeight.w600, fontSize: 15)),
                       const SizedBox(height: 2),
                       Text(_formatTime(m.createTime), style: const TextStyle(color: Colors.black38, fontSize: 11)),
                     ],

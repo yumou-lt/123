@@ -18,6 +18,7 @@ import 'package:chat_app/pages/group_info_page.dart';
 import 'package:chat_app/widgets/chat_widgets.dart';
 import 'package:chat_app/widgets/vip_icon.dart';
 import 'package:chat_app/widgets/mj_effect.dart';
+import 'package:chat_app/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 
 class GroupChatPage extends StatefulWidget {
@@ -433,9 +434,9 @@ class _GroupChatPageState extends State<GroupChatPage> {
           ),
           Expanded(
             child: Container(
-              color: const Color(0xFFF5F5F5),
+              color: AppTheme.kSurface,
               child: _loading
-                  ? const Center(child: CircularProgressIndicator(color: Colors.black))
+                  ? const Center(child: CircularProgressIndicator(color: AppTheme.kAccent))
                   : _messages.isEmpty
                       ? const Center(child: Text('暂无消息', style: TextStyle(color: Colors.black38)))
                       : ListView.builder(
@@ -540,16 +541,16 @@ class _GroupChatPageState extends State<GroupChatPage> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       constraints: BoxConstraints(maxWidth: 260),
       decoration: BoxDecoration(
-        color: isMine ? const Color(0xFF2196F3) : Colors.white,
+        color: isMine ? AppTheme.kAccentSoft : AppTheme.kWhite,
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(16),
           topRight: const Radius.circular(16),
           bottomLeft: Radius.circular(isMine ? 16 : 4),
           bottomRight: Radius.circular(isMine ? 4 : 16),
         ),
-        border: isMine ? null : Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+        border: isMine ? null : Border.all(color: AppTheme.kDivider, width: 0.5),
       ),
-      child: Text(msg.content, style: TextStyle(color: isMine ? Colors.white : Colors.black, fontSize: 15)),
+      child: Text(msg.content, style: TextStyle(color: AppTheme.kBlack, fontSize: 15)),
     );
   }
 
@@ -592,7 +593,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
                   onTap: () => setState(() => _showExtraPanel = !_showExtraPanel),
                   child: Container(
                     width: 38, height: 38,
-                    child: Icon(Icons.add, color: _showExtraPanel ? const Color(0xFF2196F3) : Colors.black54, size: 24),
+                    child: Icon(Icons.add, color: _showExtraPanel ? AppTheme.kAccent : AppTheme.kSubText, size: 24),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -600,7 +601,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
+                      color: AppTheme.kSurface,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: TextField(
@@ -631,7 +632,7 @@ class _GroupChatPageState extends State<GroupChatPage> {
                   child: ElevatedButton(
                     onPressed: _send,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2196F3),
+                      backgroundColor: AppTheme.kAccent,
                       padding: EdgeInsets.zero,
                       shape: const CircleBorder(),
                     ),

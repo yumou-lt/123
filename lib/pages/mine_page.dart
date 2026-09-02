@@ -234,9 +234,12 @@ class _MinePageState extends State<MinePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: AppTheme.contentMaxWidth(context)),
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
           // 头部资料
           Container(
             padding: const EdgeInsets.fromLTRB(20, 32, 20, 24),
@@ -249,7 +252,7 @@ class _MinePageState extends State<MinePage> {
                       height: 64,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.grey.shade200,
+                        color: AppTheme.kSurface,
                       ),
                       child: _avatar.isNotEmpty
                           ? ClipOval(child: Image.network(GlobalConfig.avatarUrl(_avatar), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.black54, size: 36)))
@@ -271,7 +274,7 @@ class _MinePageState extends State<MinePage> {
                     children: [
                       Row(
                         children: [
-                          Text(_nickname, style: const TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.w700)),
+                          Text(_nickname, style: const TextStyle(color: AppTheme.kBlack, fontSize: 20, fontWeight: FontWeight.w700)),
                           if (_isVip) ...[
                             const SizedBox(width: 6),
                             const VipIcon(size: 16, isVip: true),
@@ -279,7 +282,7 @@ class _MinePageState extends State<MinePage> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text('ID: $_userId', style: const TextStyle(color: Colors.black38, fontSize: 13)),
+                      Text('ID: $_userId', style: const TextStyle(color: AppTheme.kSubText, fontSize: 13)),
                     ],
                   ),
                 ),
@@ -333,8 +336,8 @@ class _MinePageState extends State<MinePage> {
             child: OutlinedButton(
               onPressed: _logout,
               style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.black,
-                side: const BorderSide(color: Colors.black12, width: 0.5),
+                foregroundColor: AppTheme.kBlack,
+                side: const BorderSide(color: AppTheme.kDivider, width: 0.5),
                 minimumSize: const Size.fromHeight(50),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
@@ -345,18 +348,20 @@ class _MinePageState extends State<MinePage> {
           // 底部版本号
           Center(
             child: Text('冷亭雨 v${UpdateService().currentVersionName} (${UpdateService().currentVersionCode})',
-                style: const TextStyle(color: Colors.black26, fontSize: 11)),
+                style: const TextStyle(color: AppTheme.kSubText2, fontSize: 11)),
           ),
           const SizedBox(height: 16),
         ],
       ),
+          ),
+        ),
     );
   }
 
   Widget _buildDivider() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(height: 1, color: Colors.black.withOpacity(0.06)),
+      child: Container(height: 1, color: AppTheme.kDivider),
     );
   }
 
@@ -369,9 +374,9 @@ class _MinePageState extends State<MinePage> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [
-            Icon(icon, color: highlight ? Colors.red : Colors.black54, size: 20),
+            Icon(icon, color: highlight ? Colors.red : AppTheme.kSubText, size: 20),
             const SizedBox(width: 14),
-            Expanded(child: Text(label, style: TextStyle(color: highlight ? Colors.red : Colors.black, fontSize: 15))),
+            Expanded(child: Text(label, style: TextStyle(color: highlight ? Colors.red : AppTheme.kBlack, fontSize: 15))),
             if (highlight)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

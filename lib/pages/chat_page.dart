@@ -19,6 +19,7 @@ import 'package:chat_app/pages/group_info_page.dart';
 import 'package:chat_app/widgets/chat_widgets.dart';
 import 'package:chat_app/widgets/vip_icon.dart';
 import 'package:chat_app/widgets/mj_effect.dart';
+import 'package:chat_app/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 
 class ChatPage extends StatefulWidget {
@@ -499,7 +500,7 @@ class _ChatPageState extends State<ChatPage> {
           ),
           Expanded(
             child: Container(
-              color: const Color(0xFFF5F5F5),
+              color: AppTheme.kSurface,
               child: _loading
                   ? const Center(child: CircularProgressIndicator(color: Colors.black))
                   : _messages.isEmpty
@@ -632,23 +633,23 @@ class _ChatPageState extends State<ChatPage> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         constraints: BoxConstraints(maxWidth: maxBubbleWidth),
         decoration: BoxDecoration(
-          color: isMine ? const Color(0xFF2196F3) : Colors.white,
+          color: isMine ? AppTheme.kAccentSoft : AppTheme.kWhite,
           borderRadius: BorderRadius.only(
             topLeft: const Radius.circular(16), topRight: const Radius.circular(16),
             bottomLeft: Radius.circular(isMine ? 16 : 4), bottomRight: Radius.circular(isMine ? 4 : 16),
           ),
-          border: isMine ? null : Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+          border: isMine ? null : Border.all(color: AppTheme.kDivider, width: 0.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.insert_drive_file_outlined, color: isMine ? Colors.white : Colors.black54, size: 28),
+            Icon(Icons.insert_drive_file_outlined, color: isMine ? AppTheme.kBlack : AppTheme.kSubText, size: 28),
             const SizedBox(width: 8),
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(fileName, style: TextStyle(color: isMine ? Colors.white : Colors.black, fontSize: 14, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
-                if (fileExt.isNotEmpty) Text(fileExt.toUpperCase(), style: TextStyle(color: isMine ? Colors.white60 : Colors.black38, fontSize: 11)),
+                Text(fileName, style: TextStyle(color: AppTheme.kBlack, fontSize: 14, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
+                if (fileExt.isNotEmpty) Text(fileExt.toUpperCase(), style: TextStyle(color: AppTheme.kSubText, fontSize: 11)),
               ],
             )),
           ],
@@ -666,7 +667,7 @@ class _ChatPageState extends State<ChatPage> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       constraints: BoxConstraints(maxWidth: maxBubbleWidth),
       decoration: BoxDecoration(
-        color: isMine ? const Color(0xFF2196F3) : Colors.white,
+        color: isMine ? AppTheme.kAccentSoft : AppTheme.kWhite,
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(16), topRight: const Radius.circular(16),
           bottomLeft: Radius.circular(isMine ? 16 : 4), bottomRight: Radius.circular(isMine ? 4 : 16),
@@ -708,12 +709,12 @@ class _ChatPageState extends State<ChatPage> {
               crossAxisAlignment: CrossAxisAlignment.end,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(msg.content, style: const TextStyle(color: Colors.white, fontSize: 15)),
+                Text(msg.content, style: const TextStyle(color: AppTheme.kBlack, fontSize: 15)),
                 const SizedBox(height: 2),
                 Icon(
                   (_readReceipts[msg.id] == true) ? Icons.done_all : Icons.done,
                   size: 14,
-                  color: (_readReceipts[msg.id] == true) ? Colors.white70 : Colors.white54,
+                  color: (_readReceipts[msg.id] == true) ? AppTheme.kAccent : AppTheme.kSubText,
                 ),
               ],
             )
@@ -736,11 +737,11 @@ class _ChatPageState extends State<ChatPage> {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: isMine ? const Color(0xFF2196F3) : Colors.white,
+          color: isMine ? AppTheme.kAccentSoft : AppTheme.kWhite,
           borderRadius: BorderRadius.circular(12),
-          border: isMine ? null : Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+          border: isMine ? null : Border.all(color: AppTheme.kDivider, width: 0.5),
         ),
-        child: Text(msg.content, style: TextStyle(color: isMine ? Colors.white : Colors.black, fontSize: 15)),
+        child: Text(msg.content, style: TextStyle(color: AppTheme.kBlack, fontSize: 15)),
       );
     }
     return GestureDetector(
@@ -748,18 +749,18 @@ class _ChatPageState extends State<ChatPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: isMine ? const Color(0xFF2196F3) : Colors.white,
+          color: isMine ? AppTheme.kAccentSoft : AppTheme.kWhite,
           borderRadius: BorderRadius.circular(12),
-          border: isMine ? null : Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+          border: isMine ? null : Border.all(color: AppTheme.kDivider, width: 0.5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.group, color: isMine ? Colors.white : Colors.black54, size: 24),
+            Icon(Icons.group, color: isMine ? AppTheme.kBlack : AppTheme.kSubText, size: 24),
             const SizedBox(height: 6),
-            Text(card.groupName, style: TextStyle(color: isMine ? Colors.white : Colors.black, fontWeight: FontWeight.w600)),
+            Text(card.groupName, style: TextStyle(color: AppTheme.kBlack, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text('${card.memberCount}人', style: TextStyle(color: isMine ? Colors.white60 : Colors.black38, fontSize: 12)),
+            Text('${card.memberCount}人', style: TextStyle(color: AppTheme.kSubText, fontSize: 12)),
           ],
         ),
       ),
@@ -818,10 +819,10 @@ class _ChatPageState extends State<ChatPage> {
                   child: Container(
                     width: 38, height: 38,
                     decoration: BoxDecoration(
-                      color: _showEmojiPanel ? const Color(0xFF2196F3).withOpacity(0.1) : Colors.transparent,
+                      color: _showEmojiPanel ? AppTheme.kAccent.withOpacity(0.12) : Colors.transparent,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Icon(Icons.sentiment_satisfied_alt_outlined, color: _showEmojiPanel ? const Color(0xFF2196F3) : Colors.black54, size: 24),
+                    child: Icon(Icons.sentiment_satisfied_alt_outlined, color: _showEmojiPanel ? AppTheme.kAccent : AppTheme.kSubText, size: 24),
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -834,10 +835,10 @@ class _ChatPageState extends State<ChatPage> {
                   child: Container(
                     width: 38, height: 38,
                     decoration: BoxDecoration(
-                      color: _showExtraPanel ? const Color(0xFF2196F3).withOpacity(0.1) : Colors.transparent,
+                      color: _showExtraPanel ? AppTheme.kAccent.withOpacity(0.12) : Colors.transparent,
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Icon(Icons.add, color: _showExtraPanel ? const Color(0xFF2196F3) : Colors.black54, size: 24),
+                    child: Icon(Icons.add, color: _showExtraPanel ? AppTheme.kAccent : AppTheme.kSubText, size: 24),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -845,7 +846,7 @@ class _ChatPageState extends State<ChatPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F5),
+                      color: AppTheme.kSurface,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: TextField(
@@ -880,7 +881,7 @@ class _ChatPageState extends State<ChatPage> {
                   child: ElevatedButton(
                     onPressed: _send,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2196F3),
+                      backgroundColor: AppTheme.kAccent,
                       padding: EdgeInsets.zero,
                       shape: const CircleBorder(),
                     ),

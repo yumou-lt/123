@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../theme/app_theme.dart';
 import '../services/api_service.dart';
 
 /// 活动页 — 每日签到领会员
@@ -64,7 +65,7 @@ class _ActivityPageState extends State<ActivityPage> {
           });
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('🎉 ${res['message']}'), backgroundColor: Colors.orange),
+              SnackBar(content: Text('🎉 ${res['message']}'), backgroundColor: AppTheme.kAccent),
             );
           }
         } else {
@@ -91,13 +92,13 @@ class _ActivityPageState extends State<ActivityPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: AppTheme.kWhite,
       appBar: AppBar(
         title: const Text('活动中心'),
         centerTitle: true,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        elevation: 0.5,
+        backgroundColor: AppTheme.kWhite,
+        foregroundColor: AppTheme.kBlack,
+        elevation: 0,
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -121,9 +122,9 @@ class _ActivityPageState extends State<ActivityPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFF8C00)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: const LinearGradient(colors: [AppTheme.kAccent, Color(0xFF0D7AB8)], begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.orange.withOpacity( 0.3), blurRadius: 12, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: AppTheme.kAccent.withOpacity(0.25), blurRadius: 12, offset: const Offset(0, 4))],
       ),
       child: Row(
         children: [
@@ -171,11 +172,11 @@ class _ActivityPageState extends State<ActivityPage> {
         children: [
           Row(
             children: [
-              const Icon(Icons.event_available, color: Color(0xFFFF8C00), size: 20),
+              const Icon(Icons.event_available, color: AppTheme.kAccent, size: 20),
               const SizedBox(width: 8),
               const Text('每日签到', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
               const Spacer(),
-              Text(_signed ? '今日已签到 ✓' : '去签到', style: TextStyle(color: _signed ? Colors.green : Color(0xFF2196F3), fontSize: 13)),
+              Text(_signed ? '今日已签到 ✓' : '去签到', style: TextStyle(color: _signed ? Colors.green : AppTheme.kAccent, fontSize: 13)),
             ],
           ),
           const SizedBox(height: 16),
@@ -185,7 +186,7 @@ class _ActivityPageState extends State<ActivityPage> {
             child: ElevatedButton(
               onPressed: _signed || _loading ? null : _signIn,
               style: ElevatedButton.styleFrom(
-                backgroundColor: _signed ? Colors.grey.shade300 : const Color(0xFFFF8C00),
+                backgroundColor: _signed ? Colors.grey.shade300 : AppTheme.kAccent,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 elevation: 0,

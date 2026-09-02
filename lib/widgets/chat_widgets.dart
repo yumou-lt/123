@@ -5,6 +5,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:chat_app/config/global_config.dart';
+import 'package:chat_app/theme/app_theme.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:photo_view/photo_view.dart';
 
@@ -117,19 +118,19 @@ class ImageBubble extends StatelessWidget {
               return Container(
                 width: 120,
                 height: 120,
-                color: Colors.grey.shade200,
+                color: AppTheme.kSurface,
                 child: const Center(
                   child: SizedBox(
                     width: 24, height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black26),
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.kSubText2),
                   ),
                 ),
               );
             },
             errorBuilder: (_, __, ___) => Container(
               width: 120, height: 120,
-              color: Colors.grey.shade200,
-              child: const Icon(Icons.broken_image, color: Colors.black26),
+              color: AppTheme.kSurface,
+              child: const Icon(Icons.broken_image, color: AppTheme.kSubText2),
             ),
           ),
         ),
@@ -257,10 +258,10 @@ class _VoiceBubbleState extends State<VoiceBubble> {
 
   @override
   Widget build(BuildContext context) {
-    final bubbleColor = widget.isMine ? const Color(0xFF2196F3) : Colors.white;
-    final textColor = widget.isMine ? Colors.white : Colors.black;
-    final iconColor = widget.isMine ? Colors.white : Colors.black54;
-    final progressColor = widget.isMine ? Colors.white.withOpacity(0.3) : const Color(0xFFE0E0E0);
+    final bubbleColor = widget.isMine ? AppTheme.kAccentSoft : AppTheme.kWhite;
+    final textColor = AppTheme.kBlack;
+    final iconColor = widget.isMine ? AppTheme.kAccent : AppTheme.kSubText;
+    final progressColor = widget.isMine ? AppTheme.kAccentBorder : AppTheme.kDivider;
 
     // 根据时长决定气泡宽度
     final width = 100 + (widget.duration.clamp(1, 60) * 2.5);
@@ -278,7 +279,7 @@ class _VoiceBubbleState extends State<VoiceBubble> {
             bottomLeft: Radius.circular(widget.isMine ? 16 : 4),
             bottomRight: Radius.circular(widget.isMine ? 4 : 16),
           ),
-          border: widget.isMine ? null : Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+          border: widget.isMine ? null : Border.all(color: AppTheme.kDivider, width: 0.5),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -303,7 +304,7 @@ class _VoiceBubbleState extends State<VoiceBubble> {
                           height: 6 + (i % 3) * 3.0,
                           decoration: BoxDecoration(
                             color: active
-                                ? (widget.isMine ? Colors.white : Colors.black54)
+                                ? (widget.isMine ? AppTheme.kAccent : AppTheme.kSubText)
                                 : progressColor,
                             borderRadius: BorderRadius.circular(1),
                           ),
@@ -317,7 +318,7 @@ class _VoiceBubbleState extends State<VoiceBubble> {
                           width: 2,
                           height: 6 + (i % 3) * 4.0,
                           decoration: BoxDecoration(
-                            color: widget.isMine ? Colors.white54 : Colors.black26,
+                            color: widget.isMine ? AppTheme.kAccent.withOpacity(0.5) : AppTheme.kSubText2,
                             borderRadius: BorderRadius.circular(1),
                           ),
                         );
@@ -344,14 +345,14 @@ class SendingBubble extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
-        color: isMine ? const Color(0xFF2196F3).withOpacity(0.7) : Colors.white,
+        color: isMine ? AppTheme.kAccentSoft : AppTheme.kWhite,
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(16),
           topRight: const Radius.circular(16),
           bottomLeft: Radius.circular(isMine ? 16 : 4),
           bottomRight: Radius.circular(isMine ? 4 : 16),
         ),
-        border: isMine ? null : Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+        border: isMine ? null : Border.all(color: AppTheme.kDivider, width: 0.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -360,11 +361,11 @@ class SendingBubble extends StatelessWidget {
             width: 14, height: 14,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: isMine ? Colors.white : Colors.black45,
+              color: isMine ? AppTheme.kAccent : AppTheme.kSubText,
             ),
           ),
           const SizedBox(width: 8),
-          Text('发送中...', style: TextStyle(color: isMine ? Colors.white : Colors.black45, fontSize: 13)),
+          Text('发送中...', style: TextStyle(color: isMine ? AppTheme.kAccent : AppTheme.kSubText, fontSize: 13)),
         ],
       ),
     );
@@ -391,7 +392,7 @@ class ChatExtraPanel extends StatelessWidget {
     return Container(
       height: 180,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      color: const Color(0xFFF5F5F5),
+      color: AppTheme.kSurface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -426,12 +427,12 @@ class ChatExtraPanel extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE0E0E0), width: 0.5),
+              border: Border.all(color: AppTheme.kDivider, width: 0.5),
             ),
-            child: Icon(icon, color: const Color(0xFF2196F3), size: 28),
+            child: Icon(icon, color: AppTheme.kAccent, size: 28),
           ),
           const SizedBox(height: 6),
-          Text(label, style: const TextStyle(color: Colors.black54, fontSize: 12)),
+          Text(label, style: const TextStyle(color: AppTheme.kSubText, fontSize: 12)),
         ],
       ),
     );

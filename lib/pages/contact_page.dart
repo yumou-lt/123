@@ -75,56 +75,62 @@ class _ContactPageState extends State<ContactPage> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadData,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator(color: Colors.black))
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-                children: [
-                  // 待处理申请入口
-                  if (_pending.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: InkWell(
-                        onTap: _showPendingSheet,
-                        child: Container(
-                          height: 56,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          decoration: const BoxDecoration(
-                            border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE), width: 0.5)),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
-                                child: const Icon(Icons.person_add, color: Colors.black54, size: 20),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: AppTheme.contentMaxWidth(context)),
+          child: RefreshIndicator(
+            color: AppTheme.kAccent,
+            onRefresh: _loadData,
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: AppTheme.kAccent))
+                : ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      // 待处理申请入口
+                      if (_pending.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: InkWell(
+                            onTap: _showPendingSheet,
+                            child: Container(
+                              height: 56,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              decoration: const BoxDecoration(
+                                border: Border(bottom: BorderSide(color: AppTheme.kDivider, width: 0.5)),
                               ),
-                              const SizedBox(width: 12),
-                              const Expanded(child: Text('新的朋友', style: TextStyle(color: Colors.black, fontSize: 15, fontWeight: FontWeight.w500))),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(10)),
-                                child: Text('${_pending.length}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 36,
+                                    decoration: BoxDecoration(color: AppTheme.kSurface, shape: BoxShape.circle),
+                                    child: const Icon(Icons.person_add, color: Colors.black54, size: 20),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Expanded(child: Text('新的朋友', style: TextStyle(color: AppTheme.kBlack, fontSize: 15, fontWeight: FontWeight.w500))),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(color: AppTheme.kBadge, borderRadius: BorderRadius.circular(10)),
+                                    child: Text('${_pending.length}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
                           ),
                         ),
+                      // 好友标题
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Text('我的好友', style: TextStyle(color: AppTheme.kSubText, fontSize: 12, fontWeight: FontWeight.w500)),
                       ),
-                    ),
-                  // 好友标题
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(4, 16, 4, 8),
-                    child: Text('我的好友', style: TextStyle(color: Colors.black38, fontSize: 12, fontWeight: FontWeight.w500)),
+                      // 好友列表
+                      ..._friends.isEmpty
+                          ? [const Padding(padding: EdgeInsets.all(32), child: Text('暂无好友，点击右上角添加', style: TextStyle(color: AppTheme.kSubText), textAlign: TextAlign.center))]
+                          : _friends.map((f) => _buildFriendItem(f)),
+                    ],
                   ),
-                  // 好友列表
-                  ..._friends.isEmpty
-                      ? [const Padding(padding: EdgeInsets.all(32), child: Text('暂无好友，点击右上角添加', style: TextStyle(color: Colors.black38), textAlign: TextAlign.center))]
-                      : _friends.map((f) => _buildFriendItem(f)),
-                ],
-              ),
+          ),
+        ),
       ),
     );
   }
@@ -146,14 +152,14 @@ class _ContactPageState extends State<ContactPage> {
         height: 64,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE), width: 0.5)),
+          border: Border(bottom: BorderSide(color: AppTheme.kDivider, width: 0.5)),
         ),
         child: Row(
           children: [
             Container(
               width: 42,
               height: 42,
-              decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
+              decoration: BoxDecoration(color: AppTheme.kSurface, shape: BoxShape.circle),
               child: (f['avatar'] != null && f['avatar'].toString().isNotEmpty)
                   ? ClipOval(child: Image.network(GlobalConfig.avatarUrl(f['avatar']), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.black54, size: 20)))
                   : const Icon(Icons.person, color: Colors.black54, size: 20),

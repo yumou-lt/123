@@ -8,7 +8,7 @@ on:
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -34,14 +34,18 @@ jobs:
           echo "d56f5187479451eabf01fb78af6dfcb131a6481e" >> "$ANDROID_HOME/licenses/android-sdk-license"
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > "$ANDROID_HOME/licenses/android-sdk-preview-license"
 
+      - name: 安装 SDK Platform 35 + Build-Tools 35 + NDK（本仓库 compileSdk/targetSdk=35 所需）
+        run: |
+          yes | sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.0.12077973"
+
       - name: Flutter 依赖
         run: flutter pub get
 
       - name: 诊断环境
         run: flutter doctor -v
 
-      - name: 构建 release APK (arm64)
-        run: flutter build apk --release --target-platform android-arm64
+      - name: 构建 release APK（通用）
+        run: flutter build apk --release
 
       - name: 上传 APK
         uses: actions/upload-artifact@v4

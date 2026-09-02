@@ -234,23 +234,29 @@ class _MessagePageState extends State<MessagePage> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadData,
-        child: _loading
-            ? const Center(child: CircularProgressIndicator(color: Colors.black))
-            : (_conversations.isEmpty && _myGroups.isEmpty)
-                ? const Center(child: Text('暂无消息，快去添加好友吧', style: TextStyle(color: Colors.black45)))
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-                    children: [
-                      // 置顶会话
-                      ..._pinnedConvs.map((c) => _buildConversationItem(c, c['_isGroup'] == true, isPinned: true)),
-                      if (_pinnedConvs.isNotEmpty && (_conversations.isNotEmpty || _myGroups.isNotEmpty))
-                        const Divider(height: 1, thickness: 0.5, indent: 72),
-                      // 普通会话
-                      ..._conversations.map((c) => _buildConversationItem(c, c['_isGroup'] == true, isPinned: false)),
-                    ],
-                  ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: AppTheme.contentMaxWidth(context)),
+          child: RefreshIndicator(
+            color: AppTheme.kAccent,
+            onRefresh: _loadData,
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: AppTheme.kAccent))
+                : (_conversations.isEmpty && _myGroups.isEmpty)
+                    ? const Center(child: Text('暂无消息，快去添加好友吧', style: TextStyle(color: AppTheme.kSubText)))
+                    : ListView(
+                        padding: EdgeInsets.zero,
+                        children: [
+                          // 置顶会话
+                          ..._pinnedConvs.map((c) => _buildConversationItem(c, c['_isGroup'] == true, isPinned: true)),
+                          if (_pinnedConvs.isNotEmpty && (_conversations.isNotEmpty || _myGroups.isNotEmpty))
+                            const Divider(height: 1, thickness: 0.5, indent: 72),
+                          // 普通会话
+                          ..._conversations.map((c) => _buildConversationItem(c, c['_isGroup'] == true, isPinned: false)),
+                        ],
+                      ),
+          ),
+        ),
       ),
     );
   }
@@ -299,15 +305,15 @@ class _MessagePageState extends State<MessagePage> {
         height: 72,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: isPinned ? const Color(0xFFF5F5F5) : Colors.white,
-          border: const Border(bottom: BorderSide(color: Color(0xFFEEEEEE), width: 0.5)),
+          color: isPinned ? AppTheme.kHover : AppTheme.kWhite,
+          border: const Border(bottom: BorderSide(color: AppTheme.kDivider, width: 0.5)),
         ),
         child: Row(
           children: [
             Container(
               width: 46,
               height: 46,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.grey.shade100),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: AppTheme.kSurface),
               child: avatar.isNotEmpty && !isGroup
                   ? ClipOval(child: Image.network(GlobalConfig.avatarUrl(avatar), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.person, color: Colors.black54)))
                   : Icon(isGroup ? Icons.group : Icons.person, color: Colors.black54, size: 24),
@@ -333,7 +339,7 @@ class _MessagePageState extends State<MessagePage> {
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(10)),
+                          decoration: BoxDecoration(color: AppTheme.kBadge, borderRadius: BorderRadius.circular(10)),
                           child: Text(unread > 99 ? '99+' : '$unread', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
                         ),
                       ],
